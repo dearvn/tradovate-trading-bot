@@ -1,0 +1,352 @@
+{
+  "mode": "TRADOVATE_MODE",
+  "tz": "TRADOVATE_TZ",
+  "demoMode": {
+    "__name": "TRADOVATE_DEMO_MODE",
+    "__description": "Set a boolean to configure the bot in demo mode. If set as true, the bot will not allow updating configurations via the frontend.",
+    "__format": "boolean"
+  },
+  "tradovate": {
+    "live": {
+      "apiKey": "TRADOVATE_LIVE_API_KEY",
+      "secretKey": "TRADOVATE_LIVE_SECRET_KEY"
+    },
+    "test": {
+      "apiKey": "TRADOVATE_TEST_API_KEY",
+      "secretKey": "TRADOVATE_TEST_SECRET_KEY"
+    }
+  },
+  "redis": {
+    "host": "TRADOVATE_REDIS_HOST",
+    "port": {
+      "__name": "TRADOVATE_REDIS_PORT",
+      "__format": "number"
+    },
+    "password": "TRADOVATE_REDIS_PASSWORD",
+    "db": "TRADOVATE_REDIS_DB"
+  },
+  "mongo": {
+    "host": "TRADOVATE_MONGO_HOST",
+    "port": {
+      "__name": "TRADOVATE_MONGO_PORT",
+      "__format": "number"
+    },
+    "database": "TRADOVATE_MONGO_DATABASE"
+  },
+  "slack": {
+    "enabled": {
+      "__name": "TRADOVATE_SLACK_ENABLED",
+      "__format": "boolean"
+    },
+    "webhookUrl": "TRADOVATE_SLACK_WEBHOOK_URL",
+    "channel": "TRADOVATE_SLACK_CHANNEL",
+    "username": "TRADOVATE_SLACK_USERNAME"
+  },
+  "localTunnel": {
+    "enabled": {
+      "__name": "TRADOVATE_LOCAL_TUNNEL_ENABLED",
+      "__format": "boolean"
+    },
+    "subdomain": "TRADOVATE_LOCAL_TUNNEL_SUBDOMAIN"
+  },
+  "featureToggle": {
+    "notifyOrderConfirm": {
+      "__name": "TRADOVATE_FEATURE_TOGGLE_NOTIFY_ORDER_CONFIRM",
+      "__description": "Set a boolean to notify the order checking/confirm messages. Note that enabling this feature toggle can flood the messages.",
+      "__format": "boolean"
+    },
+    "notifyDebug": {
+      "__name": "TRADOVATE_FEATURE_TOGGLE_NOTIFY_DEBUG",
+      "__description": "Set a boolean to notify the debug message. Note that enabling this feature toggle can flood the messages.",
+      "__format": "boolean"
+    },
+    "notifyOrderExecute": {
+      "__name": "TRADOVATE_FEATURE_TOGGLE_NOTIFY_ORDER_EXECUTE",
+      "__description": "Set a boolean to notify the order executed messages. Note that enabling this feature toggle can flood the messages.",
+      "__format": "boolean"
+    }
+  },
+  "authentication": {
+    "enabled": {
+      "__name": "TRADOVATE_AUTHENTICATION_ENABLED",
+      "__description": "Set a boolean to enable authentication on the bot.",
+      "__format": "boolean"
+    },
+    "password": "TRADOVATE_AUTHENTICATION_PASSWORD",
+    "loginLimiter": {
+      "maxConsecutiveFails": {
+        "__name": "TRADOVATE_AUTHENTICATION_LOGIN_LIMITER_MAX_CONSECUTIVE_FAILS",
+        "__description": "Set number of allowed login failures. If failed maximum consecutive fails, the bot will block the request based on the block duration (seconds).",
+        "__format": "number"
+      },
+      "duration": {
+        "__name": "TRADOVATE_AUTHENTICATION_LOGIN_LIMITER_DURATION",
+        "__description": "Set seconds for storing points since the first login failure.",
+        "__format": "number"
+      },
+      "blockDuration": {
+        "__name": "TRADOVATE_AUTHENTICATION_LOGIN_LIMITER_BLOCK_DURATION",
+        "__description": "Set seconds for blocking the request after reaching maximum consecutive login failures.",
+        "__format": "number"
+      }
+    }
+  },
+  "jobs": {
+    "alive": {
+      "enabled": {
+        "__name": "TRADOVATE_JOBS_ALIVE_ENABLED",
+        "__format": "boolean"
+      },
+      "cronTime": "TRADOVATE_JOBS_ALIVE_CRONTIME",
+      "priceSymbol": "TRADOVATE_JOBS_ALIVE_PRICE_SYMBOL",
+      "balanceSymbols": "TRADOVATE_JOBS_ALIVE_BALANCE_SYMBOLS"
+    },
+    "trailingTrade": {
+      "enabled": {
+        "__name": "TRADOVATE_JOBS_TRAILING_TRADE_ENABLED",
+        "__format": "boolean"
+      },
+      "cronTime": "TRADOVATE_JOBS_TRAILING_TRADE_CRON_TIME",
+      "symbols": {
+        "__name": "TRADOVATE_JOBS_TRAILING_TRADE_SYMBOLS",
+        "__format": "json"
+      },
+      "botOptions": {
+        "authentication": {
+          "lockList": {
+            "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BOT_OPTIONS_AUTHENTICATION_LOCK_LIST",
+            "__description": "Set a boolean to lock the list or not. If locking the list, the bot will display the login screen before showing the list. If don't lock the list, the bot will display the symbol list, but disabling actions.",
+            "__format": "boolean"
+          },
+          "lockAfter": {
+            "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BOT_OPTIONS_AUTHENTICATION_LOCK_AFTER",
+            "__description": "Set minutes for the authentication. Once the time passes the configured minutes after login, the bot will be automatically locked.",
+            "__format": "number"
+          }
+        },
+        "autoTriggerBuy": {
+          "enabled": {
+            "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BOT_OPTIONS_AUTO_TRIGGER_BUY",
+            "__description": "Set a boolean to trigger 1st logic trade for buying after removing the last buy price due to completed logic trades for selling. Note that this action may be triggered if you sell the ticker in Tradovate directly and the last buy price was recorded.",
+            "__format": "boolean"
+          },
+          "triggerAfter": {
+            "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BOT_OPTIONS_TRIGGER_AFTER",
+            "__description": "Set minutes to trigger buy orders for the symbol after removing the last buy price.",
+            "__format": "number"
+          },
+          "conditions": {
+            "whenLessThanATHRestriction": {
+              "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BOT_OPTIONS_AUTO_TRIGGER_BY_CONDITIONS_WHEN_LESS_THAN_ATH_RESTRICTION",
+              "__description": "Set a boolean to reschedule the auto-buy trigger action if the price is over the ATH restriction.",
+              "__format": "boolean"
+            },
+            "afterDisabledPeriod": {
+              "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BOT_OPTIONS_AUTO_TRIGGER_BY_CONDITIONS_AFTER_DISABLED_PERIOD",
+              "__description": "Set a boolean to reschedule the auto-buy trigger action if the action is currently disabled by the stop-loss or other actions.",
+              "__format": "boolean"
+            },
+            "tradingView": {
+              "overrideInterval": {
+                "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BOT_OPTIONS_AUTO_TRIGGER_BY_CONDITIONS_TRADINGVIEW_OVERRIDE_INTERVAL",
+                "__description": "Override TradingView candle interval while attempting auto trigger buy. If empty, it will use TradingView -> interval. Available interval: 1m, 5m, 15m, 30m, 1h, 2h, 4h, 1d",
+                "__format": "boolean"
+              },
+              "whenStrongBuy": {
+                "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BOT_OPTIONS_AUTO_TRIGGER_BY_CONDITIONS_TRADINGVIEW_WHEN_STRONG_BUY",
+                "__description": "Set a boolean to trigger the auto-buy trigger action if the TradingView recommendation is `Strong buy`. If the recommendation is not `Strong buy`, then the bot will re-schedule the auto-buy trigger action.",
+                "__format": "boolean"
+              },
+              "whenBuy": {
+                "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BOT_OPTIONS_AUTO_TRIGGER_BY_CONDITIONS_TRADINGVIEW_WHEN_BUY",
+                "__description": "Set a boolean to trigger the auto-buy trigger action if the TradingView recommendation is `Buy`. If the recommendation is not `Buy`, then the bot will re-schedule the auto-buy trigger action.",
+                "__format": "boolean"
+              }
+            }
+          }
+        },
+        "orderLimit": {
+          "enabled": {
+            "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BOT_OPTIONS_ORDER_LIMIT_ENABLED",
+            "__description": "Set a boolean to restrict the order based on the configuration. If enabled, the bot will not place orders if the conditions meet.",
+            "__format": "boolean"
+          },
+          "maxBuyOpenOrders": {
+            "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BOT_OPTIONS_ORDER_LIMIT_MAX_BUY_OPEN_ORDERS",
+            "__description": "Set the number of concurrent open orders for buying. If set 3, then the bot will not place more than 3 buy open orders.",
+            "__format": "number"
+          },
+          "maxOpenTrades": {
+            "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BOT_OPTIONS_ORDER_LIMIT_MAX_OPEN_TRADES",
+            "__description": "Set the maximum number of open trades. If set 5,, then the bot will not place a buy order when there are 5 symbols recorded with the last buy price.",
+            "__format": "number"
+          }
+        },
+        "tradingView": {
+          "interval": {
+            "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BOT_OPTIONS_TRADING_VIEW_INTERVAL",
+            "__description": "Set the interval to retrieve TradingView technical analysis. If empty, it will use candles -> interval. Available interval: 1m, 5m, 15m, 30m, 1h, 2h, 4h, 1d",
+            "__format": "string"
+          },
+          "useOnlyWithin": {
+            "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BOT_OPTIONS_TRADING_VIEW_USE_ONLY_WITHIN",
+            "__description": "Set the minutes to allow to use TradingView technical analysis data. If the data is older than configured minutes, the bot will ignore the TradingView technical analysis data. This is due to avoid the issue with TradingView downtime.",
+            "__format": "number"
+          },
+          "ifExpires": {
+            "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BOT_OPTIONS_TRADING_VIEW_IF_EXPIRES",
+            "__description": "Set an action method if the TradingView technical analysis data is passed allowed minutes. Available: ignore, do-not-buy",
+            "__format": "string"
+          }
+        },
+        "logs": {
+          "deleteAfter": {
+            "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BOT_OPTIONS_LOGS_DELETE_AFTER",
+            "__description": "Set the minutes to delete the log. If the log is older than the configured minutes, the log will be removed from the database.",
+            "__format": "number"
+          }
+        }
+      },
+      "candles": {
+        "interval": "TRADOVATE_JOBS_TRAILING_TRADE_CANDLES_INTERVAL",
+        "limit": {
+          "__name": "TRADOVATE_JOBS_TRAILING_TRADE_CANDLES_LIMIT",
+          "__format": "number"
+        }
+      },
+      "buy": {
+        "enabled": {
+          "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BUY_ENABLED",
+          "__format": "boolean"
+        },
+        "triggerPercentage": {
+          "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BUY_TRIGGER_PERCENTAGE",
+          "__format": "number"
+        },
+        "stopPercentage": {
+          "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BUY_STOP_PERCENTAGE",
+          "__format": "number"
+        },
+        "limitPercentage": {
+          "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BUY_LIMIT_PERCENTAGE",
+          "__format": "number"
+        },
+        "athRestriction": {
+          "enabled": {
+            "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BUY_ATH_RESTRICTION_ENABLE",
+            "__format": "boolean"
+          },
+          "candles": {
+            "interval": "TRADOVATE_JOBS_TRAILING_TRADE_BUY_ATH_RESTRICTION_CANDLES_INTERVAL",
+            "limit": {
+              "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BUY_ATH_RESTRICTION_CANDLES_LIMIT",
+              "__format": "number"
+            }
+          },
+          "restrictionPercentage": {
+            "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BUY_ATH_RESTRICTION_RESTRICTION_PERCENTAGE",
+            "__format": "number"
+          }
+        },
+        "tradingView": {
+          "whenStrongBuy": {
+            "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BUY_TRADINGVIEW_WHEN_STRONG_BUY",
+            "__description": "Set a boolean to use TradingView recommendation to trigger the buy. If the buy trigger price is reached, the bot will check TradingView recommendation and if it is not `Strong buy`, then the bot will not place a buy order.",
+            "__format": "boolean"
+          },
+          "whenBuy": {
+            "__name": "TRADOVATE_JOBS_TRAILING_TRADE_BUY_TRADINGVIEW_WHEN_BUY",
+            "__description": "Set a boolean to use TradingView recommendation to trigger the buy. If the buy trigger price is reached, the bot will check TradingView recommendation and if it is not `Buy`, then the bot will not place a buy order.",
+            "__format": "boolean"
+          }
+        }
+      },
+      "sell": {
+        "enabled": {
+          "__name": "TRADOVATE_JOBS_TRAILING_TRADE_SELL_ENABLED",
+          "__format": "boolean"
+        },
+        "triggerPercentage": {
+          "__name": "TRADOVATE_JOBS_TRAILING_TRADE_SELL_TRIGGER_PERCENTAGE",
+          "__format": "number"
+        },
+        "stopPercentage": {
+          "__name": "TRADOVATE_JOBS_TRAILING_TRADE_SELL_STOP_PERCENTAGE",
+          "__format": "number"
+        },
+        "limitPercentage": {
+          "__name": "TRADOVATE_JOBS_TRAILING_TRADE_SELL_LIMIT_PERCENTAGE",
+          "__format": "number"
+        },
+        "stopLoss": {
+          "enabled": {
+            "__name": "TRADOVATE_JOBS_TRAILING_TRADE_SELL_STOP_LOSS_ENABLED",
+            "__format": "boolean"
+          },
+          "maxLossPercentage": {
+            "__name": "TRADOVATE_JOBS_TRAILING_TRADE_SELL_STOP_LOSS_MAX_LOSS_PERCENTAGE",
+            "__format": "number"
+          },
+          "disableBuyMinutes": {
+            "__name": "TRADOVATE_JOBS_TRAILING_TRADE_SELL_STOP_LOSS_DISABLE_BUY_MINUTES",
+            "__format": "number"
+          },
+          "orderType": "TRADOVATE_JOBS_TRAILING_TRADE_SELL_STOP_LOSS_ORDER_TYPE"
+        },
+        "tradingView": {
+          "forceExitAll13h": {
+            "whenNeutral": {
+              "__name": "TRADOVATE_JOBS_TRAILING_TRADE_SELL_TRADING_VIEW_FORCE_SELL_OVER_ZERO_BELOW_TRIGGER_PRICE_WHEN_NEUTRAL",
+              "__description": "Set a boolean to use TradingView recommendation to sell the ticker at the market price if the profit is over 0 but under the trigger price. When the condition is met and the TradingView recommendation is `Neutral`, then the bot will place a market sell order immediately. If the auto-buy trigger is enabled, then it will place a buy order later. Note that this action can cause loss if the profit is less than commission.",
+              "__format": "boolean"
+            },
+            "whenSell": {
+              "__name": "TRADOVATE_JOBS_TRAILING_TRADE_SELL_TRADING_VIEW_FORCE_SELL_OVER_ZERO_BELOW_TRIGGER_PRICE_WHEN_SELL",
+              "__description": "Set a boolean to use TradingView recommendation to sell the ticker at the market price if the profit is over 0 but under the trigger price. When the condition is met and the TradingView recommendation is `Sell`, then the bot will place a market sell order immediately. If the auto-buy trigger is enabled, then it will place a buy order later. Note that this action can cause loss if the profit is less than commission.",
+              "__format": "boolean"
+            },
+            "whenStrongSell": {
+              "__name": "TRADOVATE_JOBS_TRAILING_TRADE_SELL_TRADING_VIEW_FORCE_SELL_OVER_ZERO_BELOW_TRIGGER_PRICE_WHEN_STRONG_SELL",
+              "__description": "Set a boolean to use TradingView recommendation to sell the ticker at the market price if the profit is over 0 but under the trigger price. When the condition is met and the TradingView recommendation is `Strong sell`, then the bot will place a market sell order immediately. If the auto-buy trigger is enabled, then it will place a buy order later. Note that this action can cause loss if the profit is less than commission.",
+              "__format": "boolean"
+            }
+          }
+        }
+      },
+      "system": {
+        "temporaryDisableActionAfterConfirmingOrder": {
+          "__name": "TRADOVATE_JOBS_TRAILING_TRADE_SYSTEM_TEMPORARY_DISABLE_ACTION_AFTER_CONFIRMING_ORDER",
+          "__description": "Set the seconds for disabling any actions after confirming an order. Note that decreasing this value can cause issues with the bot not recording the last buy price.",
+          "__format": "number"
+        },
+        "checkManualOrderPeriod": {
+          "__name": "TRADOVATE_JOBS_TRAILING_TRADE_SYSTEM_CHECK_MANUAL_ORDER_PERIOD",
+          "__description": "Set the seconds for the period of checking the manual orders. Note that reducing the seconds can cause issues with the bot exceeding the API usage.",
+          "__format": "number"
+        },
+        "placeManualOrderInterval": {
+          "__name": "TRADOVATE_JOBS_TRAILING_TRADE_SYSTEM_PLACE_MANUAL_ORDER_INTERVAL",
+          "__description": "Set the seconds for the period of placing the manual orders. Note that reducing the seconds can cause issues with the bot exceeding the API usage.",
+          "__format": "number"
+        },
+        "refreshAccountInfoPeriod": {
+          "__name": "TRADOVATE_JOBS_TRAILING_TRADE_SYSTEM_REFRESH_ACCOUNT_INFO_PERIOD",
+          "__description": "Set the seconds for the period of checking the account info.",
+          "__format": "number"
+        },
+        "checkOrderExecutePeriod": {
+          "__name": "TRADOVATE_JOBS_TRAILING_TRADE_SYSTEM_CHECK_ORDER_EXECUTE_PERIOD",
+          "__description": "Set the seconds for the period of checking the logic trade order executed. Note that reducing the seconds can cause issues with the bot exceeding the API usage.",
+          "__format": "number"
+        }
+      }
+    },
+    "trailingTradeIndicator": {
+      "enabled": {
+        "__name": "TRADOVATE_JOBS_TRAILING_TRADE_ENABLED",
+        "__format": "boolean"
+      },
+      "cronTime": "TRADOVATE_JOBS_TRAILING_TRADE_INDICATOR_CRON_TIME"
+    }
+  }
+}

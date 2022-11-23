@@ -1,0 +1,165 @@
+{
+  "mode": "local",
+  "tz": "America/Los_Angeles",
+  "appName": "Tradovate Trading Bot",
+  "demoMode": false,
+  "tradovate": {
+    "live": {
+      "name": "",
+      "password": "",
+      "appId": "",
+      "appVersion": "1.0",
+      "cid": "",
+      "secret": ""
+    },
+    "demo": {
+      "name": "",
+      "password": "",
+      "appId": "",
+      "appVersion": "1.0",
+      "cid": "",
+      "secret": ""
+    }
+  },
+  "redis": {
+    "host": "tradovate-redis",
+    "port": 6379,
+    "password": "",
+    "db": 0
+  },
+  "mongo": {
+    "host": "tradovate-mongo",
+    "port": 27017,
+    "database": "tradovate-bot"
+  },
+  "slack": {
+    "enabled": false,
+    "webhookUrl": "",
+    "channel": "",
+    "username": ""
+  },
+  "localTunnel": {
+    "enabled": true,
+    "subdomain": "default"
+  },
+  "featureToggle": {
+    "notifyOrderConfirm": true,
+    "notifyDebug": false,
+    "notifyOrderExecute": true
+  },
+  "authentication": {
+    "enabled": true,
+    "password": "asd123",
+    "token": "",
+    "loginLimiter": {
+      "maxConsecutiveFails": 5,
+      "duration": 10800,
+      "blockDuration": 900
+    }
+  },
+  "jobs": {
+    "alive": {
+      "enabled": true,
+      "cronTime": "0 0 9 * * *"
+    },
+    "trailingTrade": {
+      "enabled": true,
+      "cronTime": "* * * * * *",
+      "symbols": [
+        "MESZ2",
+        "ESZ2",
+        "MNQZ2",
+        "NQZ2"
+      ],
+      "botOptions": {
+        "authentication": {
+          "lockList": true,
+          "lockAfter": 120
+        },
+        "autoTriggerBuy": {
+          "enabled": false,
+          "triggerAfter": 20,
+          "conditions": {
+            "whenLessThanATHRestriction": true,
+            "afterDisabledPeriod": true,
+            "tradingView": {
+              "overrideInterval": "",
+              "whenStrongBuy": true,
+              "whenBuy": true
+            }
+          }
+        },
+        "orderLimit": {
+          "enabled": true,
+          "maxBuyOpenOrders": 3,
+          "maxOpenTrades": 5
+        },
+        "tradingView": {
+          "interval": "",
+          "useOnlyWithin": 5,
+          "ifExpires": "ignore"
+        },
+        "logs": {
+          "deleteAfter": 30
+        }
+      },
+      "candles": {
+        "interval": "5",
+        "limit": 100
+      },
+      "buy": {
+        "gridTrade": [
+          {
+            "enabled": true,
+            "stoploss": 3.5,
+            "pointin": 3.5
+          }
+        ]
+      },
+      "sell": {
+        "gridTrade": [
+          {
+            "enabled": true,
+            "stoploss": 3.5,
+            "pointin": 3.5
+          }
+        ]
+      },
+      "system": {
+        "temporaryDisableActionAfterConfirmingOrder": 20,
+        "checkManualOrderPeriod": 5,
+        "placeManualOrderInterval": 5,
+        "refreshAccountInfoPeriod": 1,
+        "checkOrderExecutePeriod": 10
+      }
+    },
+    "trailingTradeIndicator": {
+      "enabled": true,
+      "cronTime": "* * * * * *"
+    }
+  },
+  "symbol": "ESZ2",
+  "interval": "5",
+  "symbols": [
+    {
+      "symbol": "MNQZ2",
+      "status": "TRADING",
+      "short": "NQ"
+    },
+    {
+      "symbol": "NQZ2",
+      "status": "TRADING",
+      "short": "NQ"
+    },
+    {
+      "symbol": "MESZ2",
+      "status": "TRADING",
+      "short": "ES"
+    },
+    {
+      "symbol": "ESZ2",
+      "status": "TRADING",
+      "short": "ES"
+    }
+  ]
+}

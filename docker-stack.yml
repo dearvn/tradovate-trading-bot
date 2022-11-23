@@ -1,0 +1,98 @@
+version: '3.7'
+
+services:
+  tradovate-redis:
+    image: redis:6.0
+    networks:
+      - ingress
+    volumes:
+      - '/data/tradovate/redis:/data/redis'
+      - '/data/tradovate/redis/redis.conf:/usr/local/etc/redis/redis.conf'
+    deploy:
+      mode: global
+    ports:
+      - 6379:6379
+    command: redis-server /usr/local/etc/redis/redis.conf
+
+  tradovate-mongo:
+    image: mongo:3.2.20-jessie
+    networks:
+      - ingress
+    volumes:
+      - '/data/tradovate/db:/data/db'
+    deploy:
+      mode: global
+    ports:
+      - 27017:27017
+
+  tradovate-mongo-express:
+    image: mongo-express:0.54
+    restart: unless-stopped
+    networks:
+      - ingress
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_SERVER: tradovate-mongo
+    deploy:
+      mode: global
+
+  tradovate-redis-commander:
+    image: rediscommander/redis-commander:latest
+    restart: unless-stopped
+    networks:
+      - ingress
+    ports:
+      - 8082:8081
+    environment:
+      REDIS_HOST: 'tradovate-redis'
+      REDIS_PORT: 6379
+      REDIS_PASSWORD:
+    deploy:
+      mode: global
+
+  tradovate-bot:
+    image: chrisleekr/tradovate-trading-bot:latest
+    networks:
+      - ingress
+    environment:
+      TRADOVATE_LIVE_API_KEY: ''
+      TRADOVATE_LIVE_SECRET_KEY: ''
+      TRADOVATE_TEST_API_KEY: ''
+      TRADOVATE_TEST_SECRET_KEY: ''
+      TRADOVATE_MODE: 'live'
+      TRADOVATE_TZ: 'Europe/Berlin'
+      TRADOVATE_SLACK_ENABLED: 'false'
+      TRADOVATE_JOBS_ALIVE_ENABLED: 'true'
+      TRADOVATE_JOBS_TRAILING_TRADE_ENABLED: 'true'
+      TRADOVATE_JOBS_TRAILING_TRADE_SYMBOLS:
+        '["MNQZ2", "NQZ2", "MESZ2", "ESZ2"]'
+      TRADOVATE_MONGO_HOST: 'tradovate-mongo'
+      TRADOVATE_MONGO_PORT: 27017
+      TRADOVATE_MONGO_DATABASE: 'tradovate-bot'
+      TRADOVATE_LOCAL_TUNNEL_ENABLED: 'false'
+      REDIS_HOST: 'tradovate-redis'
+      REDIS_PORT: 6379
+      REDIS_PASSWORD:
+    ports:
+      - 8080:80
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '50m'
+    deploy:
+      mode: global
+
+networks:
+  ingress:
+    driver: bridge
+    attachable: true
+  kern-frontend:
+    driver: bridge
+    attachable: true
+
+volumes:
+  redis_data:
+    external: true
+  mongo_data:
+    external: true

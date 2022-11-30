@@ -26,3 +26,10 @@ run: `docker-compose build` then `docker-compose up -d` to run bot at http://0.0
 ![Alt text](https://github.com/dearvn/tradovate-trading-bot/raw/main/orders.png?raw=true "orders")
 
 
+** Setting
+
+After login TradingView please copy and add token to setting page.
+
+![Alt text](https://github.com/dearvn/tradovate-trading-bot/raw/main/setting.png?raw=true "orders")
+
+

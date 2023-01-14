@@ -8,6 +8,20 @@
 
 - Implement some strategies to trading auto on some exchanges
 
+## Setting
+
+`cp .env.example .env`
+Update setting key:
+
+Tradovate key:
+
+`TRADOVATE_TEST_API_KEY`
+`TRADOVATE_TEST_SECRET_KEY`
+
+Password login:
+
+`TRADOVATE_AUTHENTICATION_PASSWORD`
+
 ## Install
 
 - use docker-compose to host

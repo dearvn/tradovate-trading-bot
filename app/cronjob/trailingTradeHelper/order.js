@@ -1,5 +1,5 @@
 const _ = require('lodash');
-const { mongo } = require('../../helpers');
+const { postgres } = require('../../helpers');
 
 /**
  * Get logic trade order
@@ -9,7 +9,7 @@ const { mongo } = require('../../helpers');
  * @returns
  */
 const getGridTradeOrder = async (logger, key) => {
-  const result = await mongo.findOne(
+  const result = await postgres.findOne(
     logger,
     'trailing_trade_grid_trade_orders',
     {
@@ -30,7 +30,7 @@ const getGridTradeOrder = async (logger, key) => {
 const saveGridTradeOrder = async (logger, key, order) => {
   //logger.info({ key, order }, 'The logic trade order has been saved.');
 
-  return mongo.upsertOne(
+  return postgres.upsertOne(
     logger,
     'trailing_trade_grid_trade_orders',
     { key },
@@ -48,7 +48,7 @@ const saveGridTradeOrder = async (logger, key, order) => {
 const deleteGridTradeOrder = async (logger, key) => {
   //logger.info({ key }, 'The logic trade order has been removed.');
 
-  return mongo.deleteOne(logger, 'trailing_trade_grid_trade_orders', { key });
+  return postgres.deleteOne(logger, 'trailing_trade_grid_trade_orders', { key });
 };
 
 /**
@@ -59,7 +59,7 @@ const deleteGridTradeOrder = async (logger, key) => {
  * @returns
  */
 const getManualOrders = async (logger, symbol) =>
-  mongo.findAll(logger, 'trailing_trade_manual_orders', { symbol });
+  postgres.findAll(logger, 'trailing_trade_manual_orders', { symbol });
 
 /**
  * Get manual trade order
@@ -69,7 +69,7 @@ const getManualOrders = async (logger, symbol) =>
  * @returns
  */
 const getManualOrder = async (logger, symbol, orderId) => {
-  const result = await mongo.findOne(logger, 'trailing_trade_manual_orders', {
+  const result = await postgres.findOne(logger, 'trailing_trade_manual_orders', {
     symbol,
     orderId
   });
@@ -89,7 +89,7 @@ const getManualOrder = async (logger, symbol, orderId) => {
 const saveManualOrder = async (logger, symbol, orderId, order) => {
   //logger.info({ orderId, order }, 'The manual order has been saved.');
 
-  return mongo.upsertOne(
+  return postgres.upsertOne(
     logger,
     'trailing_trade_manual_orders',
     { symbol, orderId },
@@ -108,7 +108,7 @@ const saveManualOrder = async (logger, symbol, orderId, order) => {
 const deleteManualOrder = async (logger, symbol, orderId) => {
   //logger.info({ orderId }, 'The manual order has been removed.');
 
-  return mongo.deleteOne(logger, 'trailing_trade_manual_orders', {
+  return postgres.deleteOne(logger, 'trailing_trade_manual_orders', {
     symbol,
     orderId
   });

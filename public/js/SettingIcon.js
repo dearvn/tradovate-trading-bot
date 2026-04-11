@@ -115,7 +115,6 @@ class SettingIcon extends React.Component {
           ? +target.value
           : target.value;
 
-    debugger;
     const stateKey = target.getAttribute('data-state-key');
 
     const { configuration } = this.state;
@@ -165,16 +164,20 @@ class SettingIcon extends React.Component {
         <button
           type='button'
           className='btn btn-sm btn-link p-0 pl-1 pr-1'
+          title='Global Settings'
           onClick={() => this.handleModalShow('setting')}>
           <i className='fas fa-cog'></i>
         </button>
         <Modal
           show={this.state.showSettingModal}
-          onHide={() => this.handleModalClose('setting)')}
+          onHide={() => this.handleModalClose('setting')}
           size='xl'>
           <Form>
             <Modal.Header className='pt-1 pb-1'>
-              <Modal.Title>Global Settings</Modal.Title>
+              <Modal.Title>
+                <i className='fas fa-sliders-h mr-2' style={{ color: 'var(--accent-blue)', fontSize: '0.85rem' }}></i>
+                Global Settings
+              </Modal.Title>
             </Modal.Header>
             <Modal.Body>
               <Accordion defaultActiveKey='0'>
@@ -185,6 +188,7 @@ class SettingIcon extends React.Component {
                       variant='link'
                       eventKey='0'
                       className='p-0 fs-7 text-uppercase'>
+                      <i className='fas fa-robot mr-1' style={{ fontSize: '0.7rem' }}></i>
                       Bot Setting
                     </Accordion.Toggle>
                   </Card.Header>
@@ -242,6 +246,7 @@ class SettingIcon extends React.Component {
                       variant='link'
                       eventKey='0'
                       className='p-0 fs-7 text-uppercase'>
+                      <i className='fas fa-key mr-1' style={{ fontSize: '0.7rem' }}></i>
                       Authentication Setting
                     </Accordion.Toggle>
                   </Card.Header>
@@ -297,6 +302,7 @@ class SettingIcon extends React.Component {
                       variant='link'
                       eventKey='0'
                       className='p-0 fs-7 text-uppercase'>
+                      <i className='fas fa-chart-line mr-1' style={{ fontSize: '0.7rem' }}></i>
                       Symbol Setting
                     </Accordion.Toggle>
                   </Card.Header>
@@ -400,6 +406,7 @@ class SettingIcon extends React.Component {
                       variant='link'
                       eventKey='0'
                       className='p-0 fs-7 text-uppercase'>
+                      <span style={{ color: 'var(--call-color)', marginRight: '4px' }}>▲</span>
                       CALL Configurations
                     </Accordion.Toggle>
                   </Card.Header>
@@ -434,6 +441,7 @@ class SettingIcon extends React.Component {
                       variant='link'
                       eventKey='0'
                       className='p-0 fs-7 text-uppercase'>
+                      <span style={{ color: 'var(--put-color)', marginRight: '4px' }}>▼</span>
                       PUT Configurations
                     </Accordion.Toggle>
                   </Card.Header>
@@ -527,13 +535,14 @@ class SettingIcon extends React.Component {
                 variant='secondary'
                 size='sm'
                 onClick={() => this.handleModalClose('setting')}>
-                Close
+                <i className='fas fa-times mr-1'></i>Close
               </Button>
               <Button
                 variant='primary'
                 size='sm'
+                disabled={!isValid}
                 onClick={() => this.handleModalShow('confirm')}>
-                Save Changes
+                <i className='fas fa-save mr-1'></i>Save Changes
               </Button>
             </Modal.Footer>
           </Form>
@@ -560,14 +569,14 @@ class SettingIcon extends React.Component {
               Cancel
             </Button>
             <Button
-              variant='primary'
+              variant='danger'
               size='sm'
               onClick={() =>
                 this.handleFormSubmit({
                   action: 'apply-to-global-only'
                 })
               }>
-              Apply now
+              <i className='fas fa-check mr-1'></i>Apply now
             </Button>
           </Modal.Footer>
         </Modal>

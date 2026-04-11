@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const _ = require('lodash');
 //const TradingView = require('@mathieuc/tradingview');
 
-const { cache, mongo, PubSub, slack, tradovate } = require('../../helpers');
+const { cache, postgres, PubSub, slack, tradovate } = require('../../helpers');
 
 
 const getCachedExchangeInfo = async logger => {
@@ -173,7 +173,7 @@ const getOpenOrdersFromAPI = async logger => {
   //logger.info({ function: 'openOrders' }, 'Retrieving open orders from API');
 
 
-  const openOrders = mongo.findAll(logger, 'orders', { 'status': 'open' }, { "sort": [['entry_time', 'desc']] });//await (await tradovate.client.http).orderList();
+  const openOrders = await postgres.findAll(logger, 'orders', { status: 'open' }, { sort: { entryTime: -1 } });
 
   //console.log(">>>>>>>>>>>>openOrders2222", openOrders);
 
@@ -239,7 +239,7 @@ const getAndCacheOpenOrdersForSymbol = async (logger, symbol) => {
  * @param {*} symbol
  */
 const getLastBuyPrice = async (logger, symbol) =>
-  mongo.findOne(logger, 'trailing_trade_symbols', {
+  postgres.findOne(logger, 'trailing_trade_symbols', {
     key: `${symbol} - last - buy - price`
   });
 
@@ -255,7 +255,7 @@ const saveLastBuyPrice = async (logger, symbol, { lastBuyPrice, quantity }) => {
     { lastBuyPrice, quantity, saveLog: true },
     'The last buy price has been saved.'
   );*/
-  const result = await mongo.upsertOne(
+  const result = await postgres.upsertOne(
     logger,
     'trailing_trade_symbols',
     { key: `${symbol} - last - buy - price` },
@@ -275,7 +275,7 @@ const saveLastBuyPrice = async (logger, symbol, { lastBuyPrice, quantity }) => {
 const removeLastBuyPrice = async (logger, symbol) => {
   //logger.info({ saveLog: true }, 'The last buy price has been removed.');
 
-  const result = await mongo.deleteOne(logger, 'trailing_trade_symbols', {
+  const result = await postgres.deleteOne(logger, 'trailing_trade_symbols', {
     key: `${symbol} - last - buy - price`
   });
 
@@ -643,198 +643,79 @@ const getCacheTrailingTradeSymbols = async (
   symbolsPerPage,
   searchKeyword
 ) => {
-  const match = {};
-
-  if (searchKeyword) {
-    match.symbol = {
-      $regex: searchKeyword,
-      $options: 'i'
-    };
-  } else {
-    match.symbol = {
-      $exists: true
-    };
-  }
-
   const sortBy = sortByParam || 'default';
   const sortDirection = sortByDesc === true ? -1 : 1;
   const pageNum = _.toNumber(page) >= 1 ? _.toNumber(page) : 1;
 
-  //logger.info({ sortBy, sortDirection }, 'latest');
+  // Fetch all rows, optionally filtered by symbol keyword
+  let allRows;
+  if (searchKeyword) {
+    const raw = await postgres.query(
+      logger,
+      `SELECT data FROM trailing_trade_cache WHERE data->>'symbol' ILIKE $1`,
+      [`%${searchKeyword}%`]
+    );
+    allRows = raw.map(r => r.data || {});
+  } else {
+    allRows = await postgres.findAll(logger, 'trailing_trade_cache', {});
+  }
 
-  let sortField = {
-    $cond: {
-      if: { $gt: [{ $size: '$buy.openOrders' }, 0] },
-      then: {
-        $multiply: [
-          {
-            $add: [
-              {
-                $let: {
-                  vars: {
-                    buyOpenOrder: {
-                      $arrayElemAt: ['$buy.openOrders', 0]
-                    }
-                  },
-                  in: '$buyOpenOrder.differenceToCancel'
-                }
-              },
-              3000
-            ]
-          },
-          -10
-        ]
-      },
-      else: {
-        $cond: {
-          if: { $gt: [{ $size: '$sell.openOrders' }, 0] },
-          then: {
-            $multiply: [
-              {
-                $add: [
-                  {
-                    $let: {
-                      vars: {
-                        sellOpenOrder: {
-                          $arrayElemAt: ['$sell.openOrders', 0]
-                        }
-                      },
-                      in: '$sellOpenOrder.differenceToCancel'
-                    }
-                  },
-                  2000
-                ]
-              },
-              -10
-            ]
-          },
-          else: {
-            $cond: {
-              if: {
-                $eq: ['$sell.difference', null]
-              },
-              then: '$buy.difference',
-              else: {
-                $multiply: [{ $add: ['$sell.difference', 1000] }, -10]
-              }
-            }
-          }
-        }
-      }
+  // Compute sort value per row — mirrors the MongoDB $cond pipeline
+  const computeSortValue = row => {
+    const buyOpenOrders = _.get(row, 'buy.openOrders', []);
+    const sellOpenOrders = _.get(row, 'sell.openOrders', []);
+
+    if (sortBy === 'buy-difference') {
+      const diff = _.get(row, 'buy.difference', null);
+      return diff === null ? _.get(row, 'symbol', '') : diff;
     }
+    if (sortBy === 'sell-profit') {
+      const pct = _.get(row, 'sell.currentProfitPercentage', null);
+      return pct === null ? _.get(row, 'symbol', '') : pct;
+    }
+    if (sortBy === 'alpha') {
+      return _.get(row, 'symbol', '');
+    }
+    // default sort
+    if (buyOpenOrders.length > 0) {
+      return (_.get(buyOpenOrders, '[0].differenceToCancel', 0) + 3000) * -10;
+    }
+    if (sellOpenOrders.length > 0) {
+      return (_.get(sellOpenOrders, '[0].differenceToCancel', 0) + 2000) * -10;
+    }
+    const sellDiff = _.get(row, 'sell.difference', null);
+    if (sellDiff === null) {
+      return _.get(row, 'buy.difference', 0);
+    }
+    return (sellDiff + 1000) * -10;
   };
 
-  if (sortBy === 'buy-difference') {
-    sortField = {
-      $cond: {
-        if: {
-          $eq: ['$buy.difference', null]
-        },
-        then: '$symbol',
-        else: '$buy.difference'
-      }
-    };
-  }
+  const sorted = [...allRows].sort((a, b) => {
+    const aVal = computeSortValue(a);
+    const bVal = computeSortValue(b);
+    if (aVal < bVal) return -1 * sortDirection;
+    if (aVal > bVal) return 1 * sortDirection;
+    return 0;
+  });
 
-  if (sortBy === 'sell-profit') {
-    sortField = {
-      $cond: {
-        if: {
-          $eq: ['$sell.currentProfitPercentage', null]
-        },
-        then: '$symbol',
-        else: '$sell.currentProfitPercentage'
-      }
-    };
-  }
-
-  if (sortBy === 'alpha') {
-    sortField = '$symbol';
-  }
-
-  const trailingTradeCacheQuery = [
-    {
-      $match: match
-    },
-    {
-      $project: {
-        symbol: '$symbol',
-        lastCandle: '$lastCandle',
-        symbolInfo: '$symbolInfo',
-        symbolConfiguration: '$symbolConfiguration',
-        baseAssetBalance: '$baseAssetBalance',
-        quoteAssetBalance: '$quoteAssetBalance',
-        buy: '$buy',
-        sell: '$sell',
-        tradingView: '$tradingView',
-        overrideData: '$overrideData',
-        sortField
-      }
-    },
-    { $sort: { sortField: sortDirection } },
-    { $skip: (pageNum - 1) * symbolsPerPage },
-    { $limit: symbolsPerPage }
-  ];
-
-  return mongo.aggregate(
-    logger,
-    'trailing_trade_cache',
-    trailingTradeCacheQuery
-  );
+  const start = (pageNum - 1) * symbolsPerPage;
+  return sorted.slice(start, start + symbolsPerPage);
 };
 
-const getCacheOpenTrades = logger => {
-  return mongo.findAll(
-    logger,
-    'orders',
-    { 'status': 'open' }
-  );
-};
-/*mongo.aggregate(logger, 'trailing_trade_cache', [
-    {
-      $group: {
-        _id: '$quoteAssetBalance.asset',
-        amount: {
-          $sum: {
-            $multiply: ['$baseAssetBalance.total', '$sell.lastBuyPrice']
-          }
-        },
-        profit: { $sum: '$sell.currentProfit' },
-        estimatedBalance: { $sum: '$baseAssetBalance.estimatedValue' },
-        free: { $first: '$quoteAssetBalance.free' },
-        locked: { $first: '$quoteAssetBalance.locked' }
-      }
-    },
-    {
-      $project: {
-        asset: '$_id',
-        amount: '$amount',
-        profit: '$profit',
-        estimatedBalance: '$estimatedBalance',
-        free: '$free',
-        locked: '$locked'
-      }
-    }
-  ]);*/
+const getCacheOpenTrades = logger =>
+  postgres.findAll(logger, 'orders', { status: 'open' });
 
 const getCacheTrailingTradeQuoteEstimates = logger =>
-  mongo.aggregate(logger, 'trailing_trade_cache', [
-    {
-      $match: {
-        'baseAssetBalance.estimatedValue': {
-          $gt: 0
-        }
-      }
-    },
-    {
-      $project: {
-        baseAsset: '$symbolInfo.baseAsset',
-        quoteAsset: '$symbolInfo.quoteAsset',
-        estimatedValue: '$baseAssetBalance.estimatedValue',
-        tickSize: '$symbolInfo.filterPrice.tickSize'
-      }
-    }
-  ]);
+  postgres.query(
+    logger,
+    `SELECT
+       data->'symbolInfo'->>'baseAsset'               AS "baseAsset",
+       data->'symbolInfo'->>'quoteAsset'              AS "quoteAsset",
+       (data->'baseAssetBalance'->>'estimatedValue')::FLOAT8 AS "estimatedValue",
+       data->'symbolInfo'->'filterPrice'->>'tickSize' AS "tickSize"
+     FROM trailing_trade_cache
+     WHERE (data->'baseAssetBalance'->>'estimatedValue')::NUMERIC > 0`
+  );
 
 /**
  * Check whether max number of open trades has reached

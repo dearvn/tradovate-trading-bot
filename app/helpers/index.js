@@ -2,7 +2,7 @@ const cache = require('./cache');
 const logger = require('./logger');
 const slack = require('./slack');
 const tradovate = require('./tradovate');
-const mongo = require('./mongo');
+const postgres = require('./postgres');
 const { PubSub } = require('./pubsub');
 
 module.exports = {
@@ -10,6 +10,6 @@ module.exports = {
   logger,
   slack,
   tradovate,
-  mongo,
+  postgres,
   PubSub
 };

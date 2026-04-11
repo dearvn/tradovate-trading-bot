@@ -27,10 +27,13 @@
     "password": "",
     "db": 0
   },
-  "mongo": {
-    "host": "tradovate-mongo",
-    "port": 27017,
-    "database": "tradovate-bot"
+  "postgres": {
+    "host": "tradovate-postgres",
+    "port": 5432,
+    "database": "tradovate_bot",
+    "user": "tradovate",
+    "password": "tradovate_pass",
+    "maxConnections": 10
   },
   "slack": {
     "enabled": false,
@@ -105,9 +108,24 @@
       },
       "candles": {
         "interval": "5",
-        "limit": 100
+        "limit": 100,
+        "share": 100
       },
       "buy": {
+        "enabled": true,
+        "lastBuyPriceRemoveThreshold": -1,
+        "athRestriction": {
+          "enabled": false,
+          "candles": {
+            "interval": "1d",
+            "share": 100
+          },
+          "restrictionPercentage": 1.0
+        },
+        "tradingView": {
+          "whenStrongBuy": false,
+          "whenBuy": false
+        },
         "gridTrade": [
           {
             "enabled": true,
@@ -117,6 +135,20 @@
         ]
       },
       "sell": {
+        "enabled": true,
+        "stopLoss": {
+          "enabled": false,
+          "maxLossPercentage": 0.8,
+          "disableBuyMinutes": 60,
+          "orderType": "market"
+        },
+        "tradingView": {
+          "forceExitAll13h": {
+            "whenNeutral": false,
+            "whenSell": false,
+            "whenStrongSell": false
+          }
+        },
         "gridTrade": [
           {
             "enabled": true,

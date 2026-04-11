@@ -3,7 +3,7 @@ const {
   verifyAuthenticated
 } = require('../../../cronjob/trailingTradeHelper/common');
 
-const { mongo } = require('../../../helpers');
+const { postgres } = require('../../../helpers');
 
 const handleGridTradeArchiveGet = async (funcLogger, app) => {
   const logger = funcLogger.child({
@@ -22,17 +22,12 @@ const handleGridTradeArchiveGet = async (funcLogger, app) => {
       end
     } = req.body;
 
-    // Verify authentication
-
     const page = rawPage || 1;
     const limit = rawLimit || 5;
-
-    //logger.info({ page, limit }, 'Logic Trade Archive');
 
     const isAuthenticated = await verifyAuthenticated(logger, authToken);
 
     if (isAuthenticated === false) {
-      //logger.info('Not authenticated');
       return res.send({
         success: false,
         status: 403,
@@ -56,39 +51,21 @@ const handleGridTradeArchiveGet = async (funcLogger, app) => {
       });
     }
 
+    // Build filter for findAll (uses buildWhere inside postgres helper)
     const match = {};
-    const group = {};
-    const project = {};
-    const initialValue = {};
-
     if (start || end) {
       match.archivedAt = {
         ...(start ? { $gte: moment(start).toISOString() } : {}),
         ...(end ? { $lte: moment(end).toISOString() } : {})
       };
     }
-
-    // eslint-disable-next-line default-case
-    switch (type) {
-      case 'symbol':
-        match.symbol = symbol;
-        // eslint-disable-next-line no-underscore-dangle
-        group._id = '$symbol';
-        group.symbol = { $first: '$symbol' };
-        project.symbol = 1;
-        initialValue.symbol = symbol;
-        break;
-      case 'quoteAsset':
-        match.quoteAsset = quoteAsset;
-        // eslint-disable-next-line no-underscore-dangle
-        group._id = '$quoteAsset';
-        group.quoteAsset = { $first: '$quoteAsset' };
-        project.quoteAsset = 1;
-        initialValue.quoteAsset = quoteAsset;
-        break;
+    if (type === 'symbol') {
+      match.symbol = symbol;
+    } else if (type === 'quoteAsset') {
+      match.quoteAsset = quoteAsset;
     }
 
-    const rows = await mongo.findAll(
+    const rows = await postgres.findAll(
       logger,
       'trailing_trade_grid_trade_archive',
       match,
@@ -99,68 +76,65 @@ const handleGridTradeArchiveGet = async (funcLogger, app) => {
       }
     );
 
-    const stats = (
-      await mongo.aggregate(logger, 'trailing_trade_grid_trade_archive', [
-        {
-          $match: match
-        },
-        {
-          $group: {
-            ...group,
-            totalBuyQuoteQty: { $sum: '$totalBuyQuoteQty' },
-            totalSellQuoteQty: { $sum: '$totalSellQuoteQty' },
-            buyGridTradeQuoteQty: { $sum: '$buyGridTradeQuoteQty' },
-            buyManualQuoteQty: { $sum: '$buyManualQuoteQty' },
-            sellGridTradeQuoteQty: { $sum: '$sellGridTradeQuoteQty' },
-            sellManualQuoteQty: { $sum: '$sellManualQuoteQty' },
-            stopLossQuoteQty: { $sum: '$stopLossQuoteQty' },
-            profit: { $sum: '$profit' },
-            trades: { $sum: 1 }
-          }
-        },
-        {
-          $project: {
-            ...project,
-            totalBuyQuoteQty: 1,
-            totalSellQuoteQty: 1,
-            buyGridTradeQuoteQty: 1,
-            buyManualQuoteQty: 1,
-            sellGridTradeQuoteQty: 1,
-            sellManualQuoteQty: 1,
-            stopLossQuoteQty: 1,
-            profit: 1,
-            profitPercentage: {
-              $cond: {
-                if: {
-                  $gt: ['$totalBuyQuoteQty', 0]
-                },
-                then: {
-                  $multiply: [
-                    {
-                      $divide: ['$profit', '$totalBuyQuoteQty']
-                    },
-                    100
-                  ]
-                },
-                else: 0
-              }
-            },
-            trades: 1
-          }
-        }
-      ])
-    )[0] || {
-      ...initialValue,
-      totalBuyQuoteQty: 0,
-      totalSellQuoteQty: 0,
-      buyGridTradeQuoteQty: 0,
-      buyManualQuoteQty: 0,
-      sellGridTradeQuoteQty: 0,
-      sellManualQuoteQty: 0,
-      stopLossQuoteQty: 0,
-      profit: 0,
-      profitPercentage: 0,
-      trades: 0
+    // Build raw SQL aggregate for stats
+    const params = [];
+    const conditions = [];
+
+    if (start) {
+      params.push(moment(start).toISOString());
+      conditions.push(`archived_at >= $${params.length}`);
+    }
+    if (end) {
+      params.push(moment(end).toISOString());
+      conditions.push(`archived_at <= $${params.length}`);
+    }
+    if (type === 'symbol') {
+      params.push(symbol);
+      conditions.push(`symbol = $${params.length}`);
+    } else if (type === 'quoteAsset') {
+      params.push(quoteAsset);
+      conditions.push(`quote_asset = $${params.length}`);
+    }
+
+    const whereClause =
+      conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const groupCol = type === 'symbol' ? 'symbol' : 'quote_asset';
+
+    const aggResult = await postgres.query(
+      logger,
+      `SELECT
+         ${groupCol},
+         SUM(total_buy_quote_qty)       AS "totalBuyQuoteQty",
+         SUM(total_sell_quote_qty)      AS "totalSellQuoteQty",
+         SUM(buy_grid_trade_quote_qty)  AS "buyGridTradeQuoteQty",
+         SUM(buy_manual_quote_qty)      AS "buyManualQuoteQty",
+         SUM(sell_grid_trade_quote_qty) AS "sellGridTradeQuoteQty",
+         SUM(sell_manual_quote_qty)     AS "sellManualQuoteQty",
+         SUM(stop_loss_quote_qty)       AS "stopLossQuoteQty",
+         SUM(profit)                    AS "profit",
+         COUNT(*)::INTEGER              AS "trades"
+       FROM trailing_trade_grid_trade_archive
+       ${whereClause}
+       GROUP BY ${groupCol}`,
+      params
+    );
+
+    const aggRow = aggResult[0] || {};
+    const totalBuyQuoteQty = parseFloat(aggRow.totalBuyQuoteQty) || 0;
+    const profit = parseFloat(aggRow.profit) || 0;
+
+    const stats = {
+      ...(type === 'symbol' ? { symbol } : { quoteAsset }),
+      totalBuyQuoteQty,
+      totalSellQuoteQty: parseFloat(aggRow.totalSellQuoteQty) || 0,
+      buyGridTradeQuoteQty: parseFloat(aggRow.buyGridTradeQuoteQty) || 0,
+      buyManualQuoteQty: parseFloat(aggRow.buyManualQuoteQty) || 0,
+      sellGridTradeQuoteQty: parseFloat(aggRow.sellGridTradeQuoteQty) || 0,
+      sellManualQuoteQty: parseFloat(aggRow.sellManualQuoteQty) || 0,
+      stopLossQuoteQty: parseFloat(aggRow.stopLossQuoteQty) || 0,
+      profit,
+      profitPercentage: totalBuyQuoteQty > 0 ? (profit / totalBuyQuoteQty) * 100 : 0,
+      trades: aggRow.trades || 0
     };
 
     return res.send({

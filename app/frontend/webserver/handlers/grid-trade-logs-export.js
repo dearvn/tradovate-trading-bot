@@ -7,7 +7,7 @@ const {
   verifyAuthenticated
 } = require('../../../cronjob/trailingTradeHelper/common');
 
-const { mongo } = require('../../../helpers');
+const { postgres } = require('../../../helpers');
 
 const handleGridTradeLogsExport = async (funcLogger, app) => {
   const logger = funcLogger.child({
@@ -33,17 +33,12 @@ const handleGridTradeLogsExport = async (funcLogger, app) => {
       });
     }
 
-    const match = {};
-    const group = {};
-
-    match.symbol = symbol;
-    // eslint-disable-next-line no-underscore-dangle
-    group._id = '$symbol';
-    group.symbol = { $first: '$symbol' };
-
-    const rows = await mongo.findAll(logger, 'trailing_trade_logs', match, {
-      sort: { loggedAt: -1 }
-    });
+    const rows = await postgres.findAll(
+      logger,
+      'trailing_trade_logs',
+      { symbol },
+      { sort: { loggedAt: -1 } }
+    );
     const filePath = `${tmpDirectory()}${directorySeparator}${uuidv4()}.json`;
     fs.writeFileSync(filePath, JSON.stringify(rows));
 

@@ -1,6 +1,6 @@
 const _ = require('lodash');
 const config = require('config');
-const { PubSub, cache, mongo, tradovate } = require('./helpers');
+const { PubSub, cache, tradovate } = require('./helpers');
 const queue = require('./cronjob/trailingTradeHelper/queue');
 
 const { connect } = require("./tradovate/common")

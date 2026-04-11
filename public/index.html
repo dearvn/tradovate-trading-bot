@@ -81,7 +81,10 @@
 
     const { Typeahead, Highlighter } = ReactBootstrapTypeahead;
 
-    const { default: Dropzone } = reactDropzone;
+    const Dropzone =
+      typeof reactDropzone !== 'undefined' && reactDropzone.default
+        ? reactDropzone.default
+        : null;
   </script>
 
   <script type="text/babel" src="./js/Config.js"></script>

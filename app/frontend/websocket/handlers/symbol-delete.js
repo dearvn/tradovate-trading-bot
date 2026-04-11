@@ -1,4 +1,4 @@
-const { cache, mongo } = require('../../../helpers');
+const { cache, postgres } = require('../../../helpers');
 
 const handleSymbolDelete = async (logger, ws, payload) => {
   //logger.info({ payload }, 'Start symbol delete');
@@ -19,10 +19,10 @@ const handleSymbolDelete = async (logger, ws, payload) => {
   );
 
   [`${symbol}-last-buy-price`].forEach(async key => {
-    await mongo.deleteOne(logger, 'trailing_trade_symbols', { key });
+    await postgres.deleteOne(logger, 'trailing_trade_symbols', { key });
   });
 
-  await mongo.deleteOne(logger, 'trailing_trade_cache', { symbol });
+  await postgres.deleteOne(logger, 'trailing_trade_cache', { symbol });
 
   ws.send(JSON.stringify({ result: true, type: 'symbol-delete-result' }));
 };

@@ -2,7 +2,7 @@ const {
   removeOverrideDataForSymbol,
   verifyAuthenticated
 } = require('../../../cronjob/trailingTradeHelper/common');
-const { mongo, cache, PubSub } = require('../../../helpers');
+const { postgres, cache, PubSub } = require('../../../helpers');
 
 const handleSymbolDelete = async (funcLogger, app) => {
   const logger = funcLogger.child({
@@ -45,11 +45,11 @@ const handleSymbolDelete = async (funcLogger, app) => {
 
     // Delete last buy price
     [`${symbol}-last-buy-price`].forEach(async key => {
-      await mongo.deleteOne(logger, 'trailing_trade_symbols', { key });
+      await postgres.deleteOne(logger, 'trailing_trade_symbols', { key });
     });
 
     // Delete trade cache
-    await mongo.deleteOne(logger, 'trailing_trade_cache', { symbol });
+    await postgres.deleteOne(logger, 'trailing_trade_cache', { symbol });
 
     // Remove override data
     await removeOverrideDataForSymbol(logger, symbol);

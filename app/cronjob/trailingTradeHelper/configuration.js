@@ -1,48 +1,10 @@
 const _ = require('lodash');
 const moment = require('moment');
 const config = require('config');
-const { mongo, cache, PubSub } = require('../../helpers');
+const { postgres, cache, PubSub } = require('../../helpers');
 
 const { getLastBuyPrice, getSymbolInfo } = require('./common');
 
-/**
- * Reconfigure MongoDB index
- * @param {*} logger
- * @param {*} configuration
- */
-const reconfigureIndex = async (logger, configuration) => {
-  //logger.info('Reconfigure index');
-  const {
-    botOptions: {
-      logs: { deleteAfter: logsDeleteAfter }
-    }
-  } = configuration;
-
-  // Drop trailing_trade_logs-logs-idx
-  try {
-    await mongo.dropIndex(
-      logger,
-      'trailing_trade_logs',
-      'trailing_trade_logs-logs-idx'
-    );
-  } catch (e) {
-    /* istanbul ignore next */
-    logger.info({ e }, "Cannot find index. But it's ok to ignore.");
-  }
-
-  // Create trailing_trade_logs-logs-idx
-
-  await mongo.createIndex(
-    logger,
-    'trailing_trade_logs',
-    { loggedAt: 1 },
-    {
-      name: 'trailing_trade_logs-logs-idx',
-      background: true,
-      expireAfterSeconds: logsDeleteAfter * 60
-    }
-  );
-};
 
 /**
  * Save global configuration to mongodb
@@ -52,7 +14,7 @@ const reconfigureIndex = async (logger, configuration) => {
  */
 const saveGlobalConfiguration = async (logger, configuration) => {
   // get old configuration before saving the new one to compare
-  const oldConfiguration = await mongo.findOne(
+  const oldConfiguration = await postgres.findOne(
     logger,
     'trailing_trade_common',
     {
@@ -61,7 +23,7 @@ const saveGlobalConfiguration = async (logger, configuration) => {
   );
 
   // Save to cache for watching changes.
-  const result = await mongo.upsertOne(
+  const result = await postgres.upsertOne(
     logger,
     'trailing_trade_common',
     {
@@ -75,7 +37,9 @@ const saveGlobalConfiguration = async (logger, configuration) => {
 
   await cache.hdelall('trailing-trade-configurations:*');
 
-  await reconfigureIndex(logger, configuration);
+  // Cleanup old logs based on configured deleteAfter setting
+  const logsDeleteAfter = _.get(configuration, 'botOptions.logs.deleteAfter', 30);
+  await postgres.cleanupLogs(logger, logsDeleteAfter);
 
   // reset all websockets only when symbols, candles or ath candles are changed
   if (
@@ -108,10 +72,10 @@ const saveGlobalConfiguration = async (logger, configuration) => {
  * @param {*} logger
  */
 const getGlobalConfiguration = async logger => {
-  const orgConfigValue = config.get('jobs.trailingTrade');
+  const orgConfigValue = JSON.parse(JSON.stringify(config.get('jobs.trailingTrade')));
   orgConfigValue.symbols = Object.values(orgConfigValue.symbols);
 
-  const savedConfigValue = await mongo.findOne(
+  const savedConfigValue = await postgres.findOne(
     logger,
     'trailing_trade_common',
     {
@@ -149,7 +113,7 @@ const getSymbolConfiguration = async (logger, symbol = null) => {
   }
 
   const configValue =
-    (await mongo.findOne(logger, 'trailing_trade_symbols', {
+    (await postgres.findOne(logger, 'trailing_trade_symbols', {
       key: `${symbol}-configuration`
     })) || {};
 
@@ -174,7 +138,7 @@ const getSymbolGridTrade = async (logger, symbol = null) => {
   }
 
   const configValue =
-    (await mongo.findOne(logger, 'trailing_trade_grid_trade', {
+    (await postgres.findOne(logger, 'trailing_trade_grid_trade', {
       key: `${symbol}`
     })) || {};
 
@@ -201,7 +165,7 @@ const saveSymbolGridTrade = async (logger, symbol = null, gridTrade = {}) => {
   }
   //logger.info({ gridTrade, saveLog: true }, 'The logic trade has been updated.');
 
-  const result = await mongo.upsertOne(
+  const result = await postgres.upsertOne(
     logger,
     'trailing_trade_grid_trade',
     {
@@ -346,7 +310,7 @@ const saveSymbolGridTradeArchive = async (logger, key = null, data = {}) => {
 
   //logger.info({ data, saveLog: true }, 'The logic trade has been archived.');
 
-  const result = await mongo.upsertOne(
+  const result = await postgres.upsertOne(
     logger,
     'trailing_trade_grid_trade_archive',
     {
@@ -372,7 +336,7 @@ const saveSymbolGridTradeArchive = async (logger, key = null, data = {}) => {
  * @returns
  */
 const deleteAllSymbolConfiguration = async logger => {
-  const result = await mongo.deleteAll(logger, 'trailing_trade_symbols', {
+  const result = await postgres.deleteAll(logger, 'trailing_trade_symbols', {
     key: { $regex: /^(.+)-configuration/ }
   });
 
@@ -388,7 +352,7 @@ const deleteAllSymbolConfiguration = async logger => {
  * @returns
  */
 const deleteAllSymbolGridTrade = async logger => {
-  const result = await mongo.deleteAll(logger, 'trailing_trade_grid_trade', {});
+  const result = await postgres.deleteAll(logger, 'trailing_trade_grid_trade', {});
 
   await cache.hdelall(`trailing-trade-configurations:*`);
 
@@ -402,7 +366,7 @@ const deleteAllSymbolGridTrade = async logger => {
  * @returns
  */
 const deleteSymbolGridTrade = async (logger, symbol) => {
-  const result = await mongo.deleteOne(logger, 'trailing_trade_grid_trade', {
+  const result = await postgres.deleteOne(logger, 'trailing_trade_grid_trade', {
     key: `${symbol}`
   });
 

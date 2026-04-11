@@ -24,6 +24,11 @@ services:
       - TRADOVATE_REDIS_HOST=tradovate-redis
       - TRADOVATE_REDIS_PORT=6379
       - TRADOVATE_REDIS_PASSWORD=secretp422
+      - TRADOVATE_POSTGRES_HOST=tradovate-postgres
+      - TRADOVATE_POSTGRES_PORT=5432
+      - TRADOVATE_POSTGRES_DATABASE=tradovate_bot
+      - TRADOVATE_POSTGRES_USER=tradovate
+      - TRADOVATE_POSTGRES_PASSWORD=tradovate_pass
     ports:
       - 8080:80
     logging:
@@ -64,25 +69,20 @@ services:
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
     command: redis-server /usr/local/etc/redis/redis.conf --requirepass secretp422
 
-  tradovate-mongo:
-    container_name: tradovate-mongo
-    image: mongo:3.2.20-jessie
-    restart: unless-stopped
-    networks:
-      - internal
-    volumes:
-      - mongo_data:/data/db
-
-  tradovate-mongo-express:
-    container_name: tradovate-mongo-express
-    image: mongo-express:0.54
+  tradovate-postgres:
+    container_name: tradovate-postgres
+    image: postgres:15
     restart: unless-stopped
     networks:
       - internal
     ports:
-      - 8081:8081
+      - 5432:5432
     environment:
-      ME_CONFIG_MONGODB_SERVER: tradovate-mongo
+      POSTGRES_DB: tradovate_bot
+      POSTGRES_USER: tradovate
+      POSTGRES_PASSWORD: tradovate_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
 networks:
   internal:
@@ -92,4 +92,4 @@ networks:
 
 volumes:
   redis_data:
-  mongo_data:
+  postgres_data:

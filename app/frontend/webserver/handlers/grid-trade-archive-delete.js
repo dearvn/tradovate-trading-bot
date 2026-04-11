@@ -2,7 +2,7 @@ const {
   verifyAuthenticated
 } = require('../../../cronjob/trailingTradeHelper/common');
 
-const { mongo } = require('../../../helpers');
+const { postgres } = require('../../../helpers');
 
 const handleGridTradeArchiveDelete = async (funcLogger, app) => {
   const logger = funcLogger.child({
@@ -29,7 +29,7 @@ const handleGridTradeArchiveDelete = async (funcLogger, app) => {
     }
 
     // Delete from database
-    await mongo.deleteAll(logger, 'trailing_trade_grid_trade_archive', query);
+    await postgres.deleteAll(logger, 'trailing_trade_grid_trade_archive', query);
 
     return res.send({
       success: true,

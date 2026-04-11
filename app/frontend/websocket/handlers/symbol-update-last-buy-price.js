@@ -1,5 +1,5 @@
 const _ = require('lodash');
-const { cache, mongo, PubSub } = require('../../../helpers');
+const { cache, postgres, PubSub } = require('../../../helpers');
 const {
   getAccountInfo,
   saveLastBuyPrice
@@ -15,7 +15,7 @@ const queue = require('../../../cronjob/trailingTradeHelper/queue');
  * @returns
  */
 const deleteLastBuyPrice = async (logger, ws, symbol) => {
-  await mongo.deleteOne(logger, 'trailing_trade_symbols', {
+  await postgres.deleteOne(logger, 'trailing_trade_symbols', {
     key: `${symbol}-last-buy-price`
   });
 

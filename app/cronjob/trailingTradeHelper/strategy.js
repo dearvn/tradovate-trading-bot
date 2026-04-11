@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const _ = require('lodash');
 const TradingView = require('@mathieuc/tradingview');
 
-const { cache, mongo, PubSub, slack, tradovate } = require('../../helpers');
+const { cache, postgres, PubSub, slack, tradovate } = require('../../helpers');
 
 const ORDER_KEY = 'tradovate-order'
 
@@ -316,12 +316,12 @@ const tradeLogic = async (logger, configuration) => {
     var pb = close1 > close2 && close2 > close3 && ((close - low) / (high - low)) < 0.30 && close < close1 && close < open1 || close1 > close2 && close2 > close3 && ((close - low) / (high - low)) < 0.30 && wma11 < wma48 && close < close1 && close < open1;
 
     if (!order['order_type']) {
-      var old_order = await mongo.findOne(logger, 'orders', {
+      var old_order = await postgres.findOne(logger, 'orders', {
         'symbol': symbol, 'status': 'open'
       });
 
-      if (old_order && old_order['_id']) {
-        delete old_order['_id'];
+      if (old_order && old_order['id']) {
+        delete old_order['id'];
         order = old_order;
       }
 
@@ -491,7 +491,7 @@ const tradeLogic = async (logger, configuration) => {
         delete order['exit_time'];
         delete order['exit_price'];
 
-        await mongo.insertOne(logger, 'orders', order);
+        await postgres.insertOne(logger, 'orders', order);
 
         cache.set(ORDER_KEY, JSON.stringify(order));
 
@@ -515,7 +515,7 @@ const tradeLogic = async (logger, configuration) => {
         delete order['exit_time'];
         delete order['exit_price'];
 
-        await mongo.insertOne(logger, 'orders', order);
+        await postgres.insertOne(logger, 'orders', order);
 
         cache.set(ORDER_KEY, JSON.stringify(order));
 
@@ -592,7 +592,7 @@ const tradeLogic = async (logger, configuration) => {
         order['exit_price'] = close;
         order['exit_time'] = new Date().getTime();
 
-        await mongo.upsertOne(logger, 'orders', { 'entry_time': order['entry_time'] },
+        await postgres.upsertOne(logger, 'orders', { 'entry_time': order['entry_time'] },
           {
             'status': 'closed',
             'exit_order_id': exit_order_id,

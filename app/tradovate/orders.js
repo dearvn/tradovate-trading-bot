@@ -1,5 +1,5 @@
 const _ = require('lodash');
-const { tradovate, cache, mongo } = require('../helpers');
+const { tradovate, cache, postgres } = require('../helpers');
 const {
   getOpenOrdersFromAPI
 } = require('../cronjob/trailingTradeHelper/common');
@@ -66,7 +66,7 @@ const syncOpenOrders = async (logger, symbols) => {
  * @param {*} logger
  */
 const syncDatabaseOrders = async logger => {
-  const databaseOrders = await mongo.findAll(
+  const databaseOrders = await postgres.findAll(
     logger,
     'trailing_trade_grid_trade_orders',
     {}

@@ -13,7 +13,8 @@ class Header extends React.Component {
       selectedSortOption,
       searchKeyword,
       setSortOption,
-      setSearchKeyword
+      setSearchKeyword,
+      connected
     } = this.props;
 
     return (
@@ -25,14 +26,16 @@ class Header extends React.Component {
                 src='./img/tradovate.png'
                 className='tradovate-img'
                 alt='Tradovate logo'
-                width='50px'
-              />{' '}
+              />
               Tradovate Bot
             </h1>
+            <span
+              className={`header-status-dot ${connected ? 'connected' : ''}`}
+              title={connected ? 'Connected' : 'Disconnected'}
+            />
           </div>
+
           <div className='header-column header-column-icon'>
-
-
             {_.isEmpty(publicURL) === false ? (
               <div className='header-column-icon-wrapper public-url-wrapper'>
                 <a

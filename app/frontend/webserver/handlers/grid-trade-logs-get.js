@@ -2,7 +2,7 @@ const {
   verifyAuthenticated
 } = require('../../../cronjob/trailingTradeHelper/common');
 
-const { mongo } = require('../../../helpers');
+const { postgres } = require('../../../helpers');
 
 const handleGridTradeLogsGet = async (funcLogger, app) => {
   const logger = funcLogger.child({
@@ -12,16 +12,12 @@ const handleGridTradeLogsGet = async (funcLogger, app) => {
   app.route('/grid-trade-logs-get').post(async (req, res) => {
     const { authToken, symbol, page: rawPage, limit: rawLimit } = req.body;
 
-    // Verify authentication
     const page = rawPage || 1;
     const limit = rawLimit || 5;
-
-    //logger.info({ page, limit }, 'Logic Trade Logs');
 
     const isAuthenticated = await verifyAuthenticated(logger, authToken);
 
     if (isAuthenticated === false) {
-      //logger.info('Not authenticated');
       return res.send({
         success: false,
         status: 403,
@@ -33,42 +29,21 @@ const handleGridTradeLogsGet = async (funcLogger, app) => {
       });
     }
 
-    const match = {};
-    const group = {};
-    const initialValue = {};
-
-    match.symbol = symbol;
-    // eslint-disable-next-line no-underscore-dangle
-    group._id = '$symbol';
-    group.symbol = { $first: '$symbol' };
-    initialValue.symbol = symbol;
-
-    const rows = await mongo.findAll(logger, 'trailing_trade_logs', match, {
+    const rows = await postgres.findAll(logger, 'trailing_trade_logs', { symbol }, {
       sort: { loggedAt: -1 },
       skip: (page - 1) * limit,
       limit
     });
 
-    const stats = (
-      await mongo.aggregate(logger, 'trailing_trade_logs', [
-        {
-          $match: match
-        },
-        {
-          $group: {
-            ...group,
-            rows: { $sum: 1 }
-          }
-        },
-        {
-          $project: {
-            rows: 1
-          }
-        }
-      ])
-    )[0] || {
-      ...initialValue,
-      rows: 0
+    const countResult = await postgres.query(
+      logger,
+      `SELECT COUNT(*)::INTEGER AS rows FROM trailing_trade_logs WHERE symbol = $1`,
+      [symbol]
+    );
+
+    const stats = {
+      symbol,
+      rows: (countResult[0] || { rows: 0 }).rows
     };
 
     return res.send({

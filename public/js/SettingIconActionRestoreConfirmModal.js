@@ -119,30 +119,48 @@ class SettingIconActionRestoreConfirmModal extends React.Component {
           i.e. <code>tradovate-bot-backup.archive</code>
           <br />
           <br />
-          <Dropzone
-            onDrop={this.onDrop}
-            multiple={false}
-            accept={{
-              'application/octet-stream': ['.archive']
-            }}>
-            {({ getRootProps, getInputProps }) => (
-              <section className='container'>
-                <div {...getRootProps({ className: 'dropzone' })}>
-                  <input {...getInputProps()} />
-                  {selectedFiles && selectedFiles[0].name ? (
-                    <div className='selected-file'>
-                      {selectedFiles && selectedFiles[0].name}
-                    </div>
-                  ) : (
-                    <p>
-                      Drag 'n' drop the backup archive file here
-                      <br /> or click to select the backup archive file
-                    </p>
-                  )}
-                </div>
-              </section>
-            )}
-          </Dropzone>
+          {Dropzone ? (
+            <Dropzone
+              onDrop={this.onDrop}
+              multiple={false}
+              accept={{
+                'application/octet-stream': ['.archive']
+              }}>
+              {({ getRootProps, getInputProps }) => (
+                <section className='container'>
+                  <div {...getRootProps({ className: 'dropzone' })}>
+                    <input {...getInputProps()} />
+                    {selectedFiles && selectedFiles[0].name ? (
+                      <div className='selected-file'>
+                        {selectedFiles && selectedFiles[0].name}
+                      </div>
+                    ) : (
+                      <p>
+                        Drag 'n' drop the backup archive file here
+                        <br /> or click to select the backup archive file
+                      </p>
+                    )}
+                  </div>
+                </section>
+              )}
+            </Dropzone>
+          ) : (
+            <div className='dropzone'>
+              <input
+                type='file'
+                accept='.archive'
+                onChange={e =>
+                  e.target.files.length &&
+                  this.onDrop(Array.from(e.target.files))
+                }
+              />
+              {selectedFiles && selectedFiles[0].name ? (
+                <div className='selected-file'>{selectedFiles[0].name}</div>
+              ) : (
+                <p>Click to select the backup archive file</p>
+              )}
+            </div>
+          )}
           And click "Upload & Restore" button.
           <br />
           <br />

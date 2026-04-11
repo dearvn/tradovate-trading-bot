@@ -1,6 +1,6 @@
 const _ = require('lodash');
 const moment = require('moment-timezone');
-const { tradovate, cache, mongo } = require('../../../helpers');
+const { tradovate, cache, postgres } = require('../../../helpers');
 /**
  * Get quote asset statistics
  *
@@ -56,7 +56,7 @@ const execute = async (logger, rawData) => {
     };
   }
 
-  const closedTrades = await mongo.findAll(logger, 'orders', { 'status': 'closed' }, { "sort": [['entry_time', 'desc']] });//await (await tradovate.client.http).orderList();
+  const closedTrades = await postgres.findAll(logger, 'orders', { 'status': 'closed' }, { sort: { entryTime: -1 } });
 
   /*(
     await mongo.aggregate(logger, 'trailing_trade_grid_trade_archive', [

@@ -427,6 +427,7 @@ class App extends React.Component {
           searchKeyword={searchKeyword}
           setSortOption={this.setSortOption}
           setSearchKeyword={this.setSearchKeyword}
+          connected={connected}
         />
         {_.isEmpty(configuration) === false ? (
           <div className='app-body'>

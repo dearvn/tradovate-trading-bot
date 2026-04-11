@@ -1,4 +1,4 @@
-const { logger: rootLogger, mongo } = require('./helpers');
+const { logger: rootLogger, postgres } = require('./helpers');
 const { runTradovate } = require('./server-tradovate');
 const { runCronjob } = require('./server-cronjob');
 const { runFrontend } = require('./server-frontend');
@@ -11,7 +11,7 @@ const { runErrorHandler } = require('./error-handler');
 
   runErrorHandler(logger);
 
-  await mongo.connect(logger);
+  await postgres.connect(logger);
 
   await Promise.all([
     runTradovate(logger),

@@ -3,7 +3,7 @@ const moment = require('moment');
 const bunyan = require('bunyan');
 const packageJson = require('../../package.json');
 
-const mongo = require('./mongo');
+const postgres = require('./postgres');
 
 /* istanbul ignore next */
 const fakeLogger = {
@@ -21,7 +21,7 @@ InfoStream.prototype.write = rawLog => {
 
   if (_.get(log, 'symbol', '') !== '' && _.get(log, 'saveLog', false)) {
     if (_.get(lastLogs, `${log.symbol}.message`, '') !== log.msg) {
-      mongo.insertOne(fakeLogger, 'trailing_trade_logs', {
+      postgres.insertOne(fakeLogger, 'trailing_trade_logs', {
         symbol: log.symbol,
         msg: log.msg,
         loggedAt: moment(log.time).utc().toDate(),

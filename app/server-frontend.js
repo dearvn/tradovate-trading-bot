@@ -53,7 +53,8 @@ const runFrontend = async serverLogger => {
   // Must configure bull board before listen.
   configureBullBoard(app, logger);
 
-  const server = app.listen(80);
+  const port = parseInt(process.env.PORT || '80', 10);
+  const server = app.listen(port);
 
   if (config.get('authentication.enabled')) {
     const rateLimiterMiddleware = async (req, res, next) => {

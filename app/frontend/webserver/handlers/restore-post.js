@@ -44,8 +44,10 @@ const handleRestorePost = async (funcLogger, app) => {
     const result = await new Promise(resolve => {
       shell.exec(
         `${process.cwd()}/scripts/restore.sh ${config.get(
-          'mongo.host'
-        )} ${config.get('mongo.port')} ${filepath}`,
+          'postgres.host'
+        )} ${config.get('postgres.port')} ${config.get(
+          'postgres.database'
+        )} ${config.get('postgres.user')} ${filepath}`,
         (code, stdout, stderr) => {
           resolve({ code, stdout, stderr });
         }

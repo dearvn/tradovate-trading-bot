@@ -25,13 +25,15 @@
     "password": "TRADOVATE_REDIS_PASSWORD",
     "db": "TRADOVATE_REDIS_DB"
   },
-  "mongo": {
-    "host": "TRADOVATE_MONGO_HOST",
+  "postgres": {
+    "host": "TRADOVATE_POSTGRES_HOST",
     "port": {
-      "__name": "TRADOVATE_MONGO_PORT",
+      "__name": "TRADOVATE_POSTGRES_PORT",
       "__format": "number"
     },
-    "database": "TRADOVATE_MONGO_DATABASE"
+    "database": "TRADOVATE_POSTGRES_DATABASE",
+    "user": "TRADOVATE_POSTGRES_USER",
+    "password": "TRADOVATE_POSTGRES_PASSWORD"
   },
   "slack": {
     "enabled": {

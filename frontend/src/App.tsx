@@ -7,6 +7,7 @@ import Dashboard from "@/pages/Dashboard";
 import TradeHistory from "@/pages/TradeHistory";
 import StrategySettings from "@/pages/StrategySettings";
 import Logs from "@/pages/Logs";
+import ConnectAccount from "@/pages/ConnectAccount";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,6 +35,7 @@ function Router() {
         <Route path="/trade-history" component={TradeHistory} />
         <Route path="/strategy" component={StrategySettings} />
         <Route path="/logs" component={Logs} />
+        <Route path="/connect" component={ConnectAccount} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>

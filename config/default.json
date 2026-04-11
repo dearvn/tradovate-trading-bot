@@ -4,6 +4,7 @@
   "appName": "Tradovate Trading Bot",
   "demoMode": false,
   "tradovate": {
+    "oauthCallbackUrl": "",
     "live": {
       "name": "",
       "password": "",
@@ -47,6 +48,9 @@
   },
   "frontend": {
     "allowedOrigin": ""
+  },
+  "uws": {
+    "port": 3001
   },
   "featureToggle": {
     "notifyOrderConfirm": true,

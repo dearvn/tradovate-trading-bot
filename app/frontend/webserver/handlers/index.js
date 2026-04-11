@@ -1,4 +1,5 @@
 const { handleAuth } = require('./auth');
+const { handleTradovateOAuth } = require('./tradovate-oauth');
 const { handleGridTradeArchiveGet } = require('./grid-trade-archive-get');
 const { handleGridTradeArchiveDelete } = require('./grid-trade-archive-delete');
 const { handleClosedTradesSetPeriod } = require('./closed-trades-set-period');
@@ -20,6 +21,7 @@ const { handleLogs } = require('./api/logs');
 
 const setHandlers = async (logger, app, { loginLimiter }) => {
   await handleAuth(logger, app, { loginLimiter });
+  await handleTradovateOAuth(logger, app);
   await handleGridTradeArchiveGet(logger, app);
   await handleGridTradeArchiveDelete(logger, app);
   await handleClosedTradesSetPeriod(logger, app);

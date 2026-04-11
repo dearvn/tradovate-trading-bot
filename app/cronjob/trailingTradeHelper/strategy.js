@@ -7,7 +7,7 @@ const { cache, postgres, PubSub, slack, tradovate } = require('../../helpers');
 
 const ORDER_KEY = 'tradovate-order'
 
-const { WMA, RSI, Lowest, CrossUp, CrossDown } = require('technicalindicators');
+const { WMA, RSI, Lowest, CrossUp, CrossDown, ATR, MACD } = require('technicalindicators');
 const { now } = require('lodash');
 
 let closes = [];
@@ -27,6 +27,9 @@ let order = { 'order_type': '', 'last': 0 };
 let cnt_out_up = 0;
 let rsi_up = false;
 let rsi_down = false;
+let atr_value = 3.5; // dynamic ATR-based stoploss; fallback 3.5 pts
+let macd_bull = false; // MACD histogram positive / rising
+let macd_bear = false; // MACD histogram negative / falling
 
 const support = (cv, ov, lv, vv) => {
   var wmaVol = WMA.calculate({ period: 6, values: vv });
@@ -180,15 +183,23 @@ const tradeLogic = async (logger, configuration) => {
   chart.onUpdate(async () => { // When price changes
     if (!chart.periods[0]) return;
 
-    //console.log("=============", chart.infos);
-    // Do something...
-
-    //return;
-
     if (!symbol.includes(chart.infos.root)) {
       console.log("============>>>>bypass", chart.infos.full_name);
       return;
     }
+
+    // Publish live price tick on every TradingView update (before interval guard)
+    PubSub.publish('price-tick', {
+      symbol,
+      price: chart.periods[0].close,
+      high: chart.periods[0].max,
+      low: chart.periods[0].min,
+      trend: up_10m ? 'up' : down_10m ? 'down' : 'neutral',
+      order_type: order.order_type || null,
+      timestamp: Date.now()
+    });
+
+    if (!chart.periods[1]) return;
 
     var t1 = new Date(chart.periods[0].time * 1000);
     var m1 = t1.getMinutes();
@@ -290,6 +301,51 @@ const tradeLogic = async (logger, configuration) => {
     console.log(" ==>ma48", interval, "===", ma48[ma48.length - 1]);
     console.log(" ==>ma200", interval, "===", ma200[ma200.length - 1]);
 
+    // ATR(14) — dynamic stoploss based on current volatility
+    if (highs.length >= 15 && lows.length >= 15) {
+      const atrValues = ATR.calculate({ period: 14, high: highs, low: lows, close: closes });
+      if (atrValues && atrValues.length > 0) {
+        atr_value = Math.max(atrValues[atrValues.length - 1] * 1.5, 2.5);
+      }
+    }
+
+    // MACD(12,26,9) — momentum confirmation for weaker signal conditions
+    if (closes.length >= 35) {
+      const macdValues = MACD.calculate({
+        values: closes,
+        fastPeriod: 12,
+        slowPeriod: 26,
+        signalPeriod: 9,
+        SimpleMAOscillator: false,
+        SimpleMASignal: false
+      });
+      if (macdValues && macdValues.length >= 2) {
+        const m1 = macdValues[macdValues.length - 1];
+        const m2 = macdValues[macdValues.length - 2];
+        macd_bull = m1.histogram > 0 || m1.histogram > m2.histogram;
+        macd_bear = m1.histogram < 0 || m1.histogram < m2.histogram;
+      }
+    }
+
+    // Publish full indicator snapshot on every candle close
+    PubSub.publish('price-update', {
+      symbol,
+      price: close,
+      open,
+      high,
+      low,
+      rsi: rsi1,
+      wma11,
+      wma48,
+      wma200,
+      atr: atr_value,
+      macd_bull,
+      macd_bear,
+      trend: up_10m ? 'up' : down_10m ? 'down' : 'neutral',
+      order_type: order.order_type || null,
+      timestamp: Date.now()
+    });
+
     var bottomsupport = false;
 
     var bottomsupport = close > support(closes, opens, lows, volumes) && close > close1 && rsi1 > rsi2 + 10
@@ -384,33 +440,27 @@ const tradeLogic = async (logger, configuration) => {
         order['logic'] = '1'
       }
       /*
-      3. [  ] (EMA11 Crossup EMA48 and Close > EMA11 and EMA48)
-              --> BUY CALL - Set Stop loss 3.5 at Current Candle LOW)
+      3. [  ] (EMA11 Crossup EMA48 and Close > EMA11 and EMA48) + MACD bull confirmation
+              --> BUY CALL - ATR-based stoploss at Current Candle LOW
               Exit WHEN PUT or OUT or PB
       */
-      else if (logic_call[2] && logic_call[2]['enabled'] == true && (rsi_up && up_10m && is_crossup_11_48 && close > wma11 && close > wma48)) {
-        var stoploss = (logic_call[2]['stoploss'] ? logic_call[2]['stoploss'] : 3.5);
-        if (up_10m) {
-          stoploss = (logic_call[2]['stoploss_strong'] ? logic_call[2]['stoploss_strong'] : 5);
-        }
+      else if (logic_call[2] && logic_call[2]['enabled'] == true && (rsi_up && up_10m && is_crossup_11_48 && close > wma11 && close > wma48 && macd_bull)) {
+        var stoploss = atr_value;
         order['order_type'] = 'CALL';
         order['stoploss'] = low - stoploss;
         order['entry_price'] = close;
         order['entry_time'] = new Date().getTime();
-        order['note'] = '#3 (EMA11 Crossup EMA48 and Close > EMA11 and EMA48) --> BUY CALL';
+        order['note'] = '#3 (EMA11 Crossup EMA48 and Close > EMA11 and EMA48 + MACD bull) --> BUY CALL';
         order['logic'] = '3'
       }
 
-      else if (logic_call[3] && logic_call[3]['enabled'] == true && (rsi_up && up_10m && wma11 > wma48 && close > wma11 && close > close1)) {
-        var stoploss = (logic_call[3]['stoploss'] ? logic_call[3]['stoploss'] : 3.5);
-        if (up_10m) {
-          stoploss = (logic_call[3]['stoploss_strong'] ? logic_call[3]['stoploss_strong'] : 5);
-        }
+      else if (logic_call[3] && logic_call[3]['enabled'] == true && (rsi_up && up_10m && wma11 > wma48 && close > wma11 && close > close1 && macd_bull)) {
+        var stoploss = atr_value;
         order['order_type'] = 'CALL';
         order['stoploss'] = low - stoploss;
         order['entry_price'] = close;
         order['entry_time'] = new Date().getTime();
-        order['note'] = '#4 (if (wma_11 > wma_48 and close > wma_11 and up10m) and close > close[1]) --> BUY CALL';
+        order['note'] = '#4 (wma_11 > wma_48 and close > wma_11 and up10m and close > close[1] + MACD bull) --> BUY CALL';
         order['logic'] = '4'
       }
       /*
@@ -448,33 +498,27 @@ const tradeLogic = async (logger, configuration) => {
       }
 
       /*
-      6. [  ] (EMA11 Crossdown EMA48 and (Close < EMA11 or Close < EMA48))
-          --> BUY CALL - Set Stop loss 3.5 at Current Candle HIGH)
+      6. [  ] (EMA11 Crossdown EMA48 and Close < EMA11 and EMA48) + MACD bear confirmation
+          --> ORDER PUT - ATR-based stoploss at Current Candle HIGH
            Exit WHEN CALL or BottomSupport
       */
-      else if (logic_put[2] && logic_put[2]['enabled'] == true && (rsi_down && down_10m && is_crossdown_11_48 && close < wma11 && close < wma48)) {
-        var stoploss = (logic_put[2]['stoploss'] ? logic_put[2]['stoploss'] : 3.5);
-        if (down_10m) {
-          stoploss = (logic_put[2]['stoploss_strong'] ? logic_put[2]['stoploss_strong'] : 5);
-        }
+      else if (logic_put[2] && logic_put[2]['enabled'] == true && (rsi_down && down_10m && is_crossdown_11_48 && close < wma11 && close < wma48 && macd_bear)) {
+        var stoploss = atr_value;
         order['order_type'] = 'PUT';
         order['stoploss'] = high + stoploss;
         order['entry_price'] = close;
         order['entry_time'] = new Date().getTime();
-        order['note'] = '#3 (EMA11 Crossdown EMA48 and (Close < EMA11 or Close < EMA48)) --> ORDER PUT';
+        order['note'] = '#3 (EMA11 Crossdown EMA48 and Close < EMA11 and EMA48 + MACD bear) --> ORDER PUT';
         order['logic'] = '3'
       }
 
-      else if (logic_put[3] && logic_put[3]['enabled'] == true && (rsi_down && down_10m && wma11 < wma48 && close < wma48 && close < close1)) {
-        var stoploss = (logic_put[2]['stoploss'] ? logic_put[2]['stoploss'] : 3.5);
-        if (down_10m) {
-          stoploss = (logic_put[2]['stoploss_strong'] ? logic_put[2]['stoploss_strong'] : 5);
-        }
+      else if (logic_put[3] && logic_put[3]['enabled'] == true && (rsi_down && down_10m && wma11 < wma48 && close < wma48 && close < close1 && macd_bear)) {
+        var stoploss = atr_value;
         order['order_type'] = 'PUT';
         order['stoploss'] = high + stoploss;
         order['entry_price'] = close;
         order['entry_time'] = new Date().getTime();
-        order['note'] = '#4 (wma_11 < wma_48 and close < wma_48 and not up10m and close < close[1]) --> ORDER PUT';
+        order['note'] = '#4 (wma_11 < wma_48 and close < wma_48 and not up10m and close < close[1] + MACD bear) --> ORDER PUT';
         order['logic'] = '4'
       }
 
@@ -529,16 +573,8 @@ const tradeLogic = async (logger, configuration) => {
       //console.log("================ENTER ORDER:", order, new Date().getTime());
     } else {
       if (order['order_type'] == 'CALL' && order['status'] == 'open') {
-        // change stoploss
-        var indx = parseInt(order['logic']);
-        var stoploss = 3.5;
-        if (logic_call[indx]) {
-          var logc = logic_call[indx];
-          stoploss = logc['stoploss'] ? logc['stoploss'] : 3.5;
-          if (up_10m) {
-            stoploss = logc['stoploss_strong'] ? logc['stoploss_strong'] : 5;
-          }
-        }
+        // Trailing stoploss — use live ATR so it tightens as volatility drops
+        var stoploss = atr_value;
         if (order['stoploss'] + stoploss < close) {
           order['stoploss'] = close - stoploss;
           console.log("==========change stoploss call:", order['stoploss']);
@@ -557,15 +593,8 @@ const tradeLogic = async (logger, configuration) => {
           order['profit_pct'] = order['entry_price'] ? (close - order['entry_price']) / order['entry_price'] : 0;
         }
       } else if (order['order_type'] == 'PUT' && order['status'] == 'open') {
-        var indx = parseInt(order['logic']);
-        var stoploss = 3.5;
-        if (logic_put[indx]) {
-          var logc = logic_put[indx];
-          stoploss = logc['stoploss'] ? logc['stoploss'] : 3.5;
-          if (down_10m) {
-            stoploss = logc['stoploss_strong'] ? logc['stoploss_strong'] : 5;
-          }
-        }
+        // Trailing stoploss — use live ATR so it tightens as volatility drops
+        var stoploss = atr_value;
         if (order['stoploss'] - stoploss > close) {
           order['stoploss'] = close + stoploss;
           console.log("==========change stoploss put:", order['stoploss']);

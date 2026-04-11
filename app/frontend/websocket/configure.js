@@ -128,6 +128,18 @@ const configureWebSocket = async (server, funcLogger, { loginLimiter }) => {
         })
       );
     });
+
+    // Push live price tick (every TradingView update — sub-candle frequency)
+    PubSub.subscribe('price-tick', async (message, data) => {
+      if (ws.readyState !== WebSocket.OPEN) return;
+      ws.send(JSON.stringify({ result: true, type: 'price-tick', data }));
+    });
+
+    // Push full indicator snapshot (on candle close — every N minutes)
+    PubSub.subscribe('price-update', async (message, data) => {
+      if (ws.readyState !== WebSocket.OPEN) return;
+      ws.send(JSON.stringify({ result: true, type: 'price-update', data }));
+    });
   });
 
   server.on('upgrade', (request, socket, head) => {

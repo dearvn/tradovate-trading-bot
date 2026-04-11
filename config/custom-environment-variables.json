@@ -7,13 +7,22 @@
     "__format": "boolean"
   },
   "tradovate": {
+    "oauthCallbackUrl": "TRADOVATE_OAUTH_CALLBACK_URL",
     "live": {
-      "apiKey": "TRADOVATE_LIVE_API_KEY",
-      "secretKey": "TRADOVATE_LIVE_SECRET_KEY"
+      "name": "TRADOVATE_LIVE_USERNAME",
+      "password": "TRADOVATE_LIVE_PASSWORD",
+      "appId": "TRADOVATE_LIVE_APP_ID",
+      "appVersion": "TRADOVATE_LIVE_APP_VERSION",
+      "cid": "TRADOVATE_LIVE_CID",
+      "secret": "TRADOVATE_LIVE_SECRET"
     },
-    "test": {
-      "apiKey": "TRADOVATE_TEST_API_KEY",
-      "secretKey": "TRADOVATE_TEST_SECRET_KEY"
+    "demo": {
+      "name": "TRADOVATE_DEMO_USERNAME",
+      "password": "TRADOVATE_DEMO_PASSWORD",
+      "appId": "TRADOVATE_DEMO_APP_ID",
+      "appVersion": "TRADOVATE_DEMO_APP_VERSION",
+      "cid": "TRADOVATE_DEMO_CID",
+      "secret": "TRADOVATE_DEMO_SECRET"
     }
   },
   "redis": {

@@ -18,7 +18,6 @@ const {
 const execute = async (logger, rawData) => {
   const data = rawData;
 
-  return;
   // Get configuration
   const globalConfiguration = await getGlobalConfiguration(logger);
 

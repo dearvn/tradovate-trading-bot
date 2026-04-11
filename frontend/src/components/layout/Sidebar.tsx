@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Activity, History, Settings, Terminal, LayoutDashboard, ChevronLeft, ChevronRight } from "lucide-react";
+import { Activity, History, Settings, Terminal, LayoutDashboard, Link2, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Sidebar() {
@@ -32,6 +32,7 @@ export function Sidebar() {
     { href: "/trade-history", label: "Trade History", icon: History },
     { href: "/strategy", label: "Strategy Settings", icon: Settings },
     { href: "/logs", label: "Execution Logs", icon: Terminal },
+    { href: "/connect", label: "Connect Account", icon: Link2 },
   ];
 
   return (

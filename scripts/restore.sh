@@ -27,5 +27,9 @@ PGPASSWORD="${TRADOVATE_POSTGRES_PASSWORD}" pg_restore \
 # Flush redis
 redis-cli -h "$TRADOVATE_REDIS_HOST" -p "$TRADOVATE_REDIS_PORT" -a "$TRADOVATE_REDIS_PASSWORD" FLUSHALL
 
-# Kill the node process to restart
-pkill -f node
+# Signal the Node process to restart gracefully.
+# SIGTERM gives the process a chance to flush connections/buffers before exit.
+# If it doesn't exit within 10 seconds, escalate to SIGKILL.
+pkill -SIGTERM -f node || true
+sleep 10
+pkill -SIGKILL -f node || true

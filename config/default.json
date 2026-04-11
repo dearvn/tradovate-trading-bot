@@ -45,6 +45,9 @@
     "enabled": true,
     "subdomain": "default"
   },
+  "frontend": {
+    "allowedOrigin": ""
+  },
   "featureToggle": {
     "notifyOrderConfirm": true,
     "notifyDebug": false,

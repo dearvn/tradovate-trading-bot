@@ -1,9 +1,12 @@
+const path = require('path');
 const shell = require('shelljs');
 const config = require('config');
 const {
   verifyAuthenticated
 } = require('../../../cronjob/trailingTradeHelper/common');
 const { slack } = require('../../../helpers');
+
+const ALLOWED_EXTENSIONS = ['.archive', '.dump'];
 
 const handleRestorePost = async (funcLogger, app) => {
   const logger = funcLogger.child({
@@ -38,8 +41,22 @@ const handleRestorePost = async (funcLogger, app) => {
 
     const { archive } = req.files;
 
-    const filepath = `/tmp/${archive.name}`;
-    archive.mv(filepath);
+    // Validate file extension to prevent non-backup files from being restored
+    const ext = path.extname(archive.name).toLowerCase();
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      return res.send({
+        success: false,
+        status: 400,
+        message: `Invalid file type. Only ${ALLOWED_EXTENSIONS.join(', ')} files are allowed.`,
+        data: {}
+      });
+    }
+
+    // Use path.basename to strip any directory components from the filename,
+    // preventing path traversal (e.g. "../../etc/passwd").
+    const safeName = path.basename(archive.name);
+    const filepath = path.join('/tmp', safeName);
+    await archive.mv(filepath);
 
     const result = await new Promise(resolve => {
       shell.exec(

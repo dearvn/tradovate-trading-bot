@@ -10,6 +10,14 @@ const { handleBackupGet } = require('./backup-get');
 const { handleRestorePost } = require('./restore-post');
 const { handle404 } = require('./404');
 
+// New React dashboard API handlers
+const { handleHealthz } = require('./api/healthz');
+const { handleDashboard } = require('./api/dashboard');
+const { handlePositions } = require('./api/positions');
+const { handleStrategy } = require('./api/strategy');
+const { handleTrades } = require('./api/trades');
+const { handleLogs } = require('./api/logs');
+
 const setHandlers = async (logger, app, { loginLimiter }) => {
   await handleAuth(logger, app, { loginLimiter });
   await handleGridTradeArchiveGet(logger, app);
@@ -21,6 +29,15 @@ const setHandlers = async (logger, app, { loginLimiter }) => {
   await handleSymbolDelete(logger, app);
   await handleBackupGet(logger, app);
   await handleRestorePost(logger, app);
+
+  // React dashboard API routes (must be before 404 catch-all)
+  await handleHealthz(logger, app);
+  await handleDashboard(logger, app);
+  await handlePositions(logger, app);
+  await handleStrategy(logger, app);
+  await handleTrades(logger, app);
+  await handleLogs(logger, app);
+
   await handle404(logger, app);
 };
 

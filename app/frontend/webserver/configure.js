@@ -1,4 +1,4 @@
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 
 const { cache } = require('../../helpers');
 
@@ -8,7 +8,10 @@ const configureJWTToken = async () => {
   let jwtSecret = await cache.get('auth-jwt-secret');
 
   if (jwtSecret === null) {
-    jwtSecret = uuidv4();
+    // Use 32 cryptographically random bytes for the JWT secret.
+    // UUID v4 has only ~122 bits of randomness and uses a non-crypto PRNG
+    // on some runtimes; crypto.randomBytes is always CSPRNG.
+    jwtSecret = crypto.randomBytes(32).toString('hex');
     await cache.set('auth-jwt-secret', jwtSecret);
   }
 

@@ -1,3 +1,4 @@
+const fs = require('fs');
 const shell = require('shelljs');
 const config = require('config');
 const moment = require('moment');
@@ -60,7 +61,14 @@ const handleBackupGet = async (funcLogger, app) => {
       });
     }
 
-    return res.download(filepath, filename);
+    // Remove the temp file from /tmp after the download completes so
+    // backup files don't accumulate on the server.
+    return res.download(filepath, filename, err => {
+      fs.unlink(filepath, () => {}); // best-effort cleanup, ignore errors
+      if (err && !res.headersSent) {
+        logger.error({ err }, 'Error sending backup file');
+      }
+    });
   });
 };
 

@@ -9,16 +9,23 @@ const {
 } = require('../../../cronjob/trailingTradeHelper/configuration');
 const { cache, PubSub, slack } = require('../../../helpers');
 
+// Pre-compute the hash once so we don't re-hash on every login request.
+// bcrypt.hashSync generates a new salt each call, so storing it is required
+// for compareSync to work correctly across requests.
+let _passwordHash = null;
+const getPasswordHash = configuredPassword => {
+  if (!_passwordHash) {
+    _passwordHash = bcrypt.hashSync(configuredPassword, 12);
+  }
+  return _passwordHash;
+};
+
 const verifyPassword = (configuredPassword, requestedPassword) => {
-  let result = false;
   try {
-    result = bcrypt.compareSync(
-      requestedPassword,
-      bcrypt.hashSync(configuredPassword)
-    );
+    return bcrypt.compareSync(requestedPassword, getPasswordHash(configuredPassword));
     // eslint-disable-next-line no-empty
   } catch (_e) { }
-  return result;
+  return false;
 };
 
 const generateToken = async logger => {
@@ -77,7 +84,6 @@ const handleAuth = async (funcLogger, app, { loginLimiter }) => {
         `${config.get(
           'appName'
         )} Webserver:\n❌ The bot failed to authenticate.\n` +
-        `- Entered password: ${requestedPassword}\n` +
         `- IP: ${clientIp}`
       );
 

@@ -106,6 +106,44 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     },
     {
+      name: 'agent-vol-profile',
+      script: 'agents/vol-profile/index.js',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '256M',
+      env: {
+        NODE_ENV: 'development',
+        NODE_APP_INSTANCE: 'vol-profile'
+      },
+      env_production: {
+        NODE_ENV: 'production',
+        NODE_APP_INSTANCE: 'vol-profile'
+      },
+      error_file: 'logs/pm2/agent-vol-profile-error.log',
+      out_file: 'logs/pm2/agent-vol-profile-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
+    },
+    {
+      name: 'agent-regime',
+      script: 'agents/regime/index.js',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '256M',
+      env: {
+        NODE_ENV: 'development',
+        NODE_APP_INSTANCE: 'regime'
+      },
+      env_production: {
+        NODE_ENV: 'production',
+        NODE_APP_INSTANCE: 'regime'
+      },
+      error_file: 'logs/pm2/agent-regime-error.log',
+      out_file: 'logs/pm2/agent-regime-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
+    },
+    {
       name: 'agent-order-flow',
       script: 'agents/order-flow/index.js',
       instances: 1,

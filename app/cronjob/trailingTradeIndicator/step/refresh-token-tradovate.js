@@ -27,7 +27,8 @@ const execute = async (logger, rawData) => {
 
   let { token, expiration } = await getAccessToken()
 
-  console.log("**************************************reconnect-", new Date(expiration), "tradovate**************************************");
+  const expiryDisplay = expiration ? new Date(expiration).toLocaleString() : 'no token'
+  console.log(`Token status: ${expiryDisplay}`)
 
   if (token && tokenIsValid(expiration)) {
     return;

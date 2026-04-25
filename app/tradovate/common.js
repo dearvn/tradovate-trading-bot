@@ -13,6 +13,7 @@ const EXPIRATION_KEY = 'tradovate-api-access-expiration'
 const DEVICE_ID_KEY = 'tradovate-device-id'
 const AVAIL_ACCTS_KEY = 'tradovate-api-available-accounts'
 const USER_DATA_KEY = 'tradovate-user-data'
+const CAPTCHA_BLOCK_KEY = 'tradovate-api-captcha-blocked-until'
 
 const defaultGetTime = () => Date.now()
 
@@ -66,13 +67,24 @@ const waitForMs = t => {
   })
 }
 
+const CAPTCHA_BACKOFF_MS = 60 * 60 * 1000 // 1 hour
+
+const isCaptchaBlocked = async () => {
+  const blockedUntil = await cache.getWithoutLock(CAPTCHA_BLOCK_KEY)
+  if (!blockedUntil) return false
+  return Date.now() < parseInt(blockedUntil, 10)
+}
+
 const handleRetry = async (data, json) => {
   const ticket = json['p-ticket'],
     time = json['p-time'],
     captcha = json['p-captcha']
 
   if (captcha) {
-    console.error('Captcha present, cannot retry auth request via third party application. Please try again in an hour.')
+    const unblockAt = Date.now() + CAPTCHA_BACKOFF_MS
+    await cache.set(CAPTCHA_BLOCK_KEY, String(unblockAt), 3600)
+    const unblockTime = new Date(unblockAt).toLocaleTimeString()
+    console.error(`Captcha triggered — auth blocked until ${unblockTime}. Will not retry for 1 hour.`)
     return
   }
 
@@ -93,12 +105,17 @@ const connect = async ({
   env = 'demo',
   proxy = ''
 }) => {
+  if (await isCaptchaBlocked()) {
+    const blockedUntil = await cache.getWithoutLock(CAPTCHA_BLOCK_KEY)
+    const unblockTime = new Date(parseInt(blockedUntil, 10)).toLocaleTimeString()
+    console.warn(`Auth skipped — captcha backoff active until ${unblockTime}`)
+    return
+  }
+
   let { token, expiration } = await getAccessToken()
 
   if (token && tokenIsValid(expiration)) {
     console.log('Already connected. Using valid token.')
-    //const accounts = await tvGet('/account/list')
-    //setAvailableAccounts(accounts)      
     return token
   }
 

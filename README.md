@@ -65,6 +65,51 @@ Browse closed trades with entry/exit prices, P&L in points and dollars, and the 
 - **Job monitoring** — Built-in Bull Board for queue inspection at `/bull-board`
 - **Local tunnel support** — Expose bot publicly to receive TradingView webhook alerts
 
+### v2.0 — Market Intelligence Layer (Regime-Aware Trading)
+
+The core weakness of indicator-only systems is **regime blindness**: RSI, WMA, and MACD generate signals regardless of whether the market is in a trending state or grinding sideways. In sideways (choppy) markets, these signals fail at a statistically high rate, producing a cascade of stoploss hits. The v2.0 layer solves this by classifying market regime from raw futures microstructure data before any entry is considered.
+
+**New agents (all run as isolated PM2 processes):**
+
+| Agent | Description | Publishes |
+|-------|-------------|-----------|
+| `agent-order-flow` | Computes CVD (Cumulative Volume Delta) and Execution Pressure from raw Tradovate tick data every 5 seconds | `evt:order-flow:snapshot` |
+| `agent-vol-profile` | Builds a live intraday volume profile per contract (reset at 09:30 ET), computes POC / VAH / VAL / HVN / LVN | `evt:vol-profile:snapshot` |
+| `agent-regime` | Fuses OrderFlow + VolProfile into a 5-class regime label every 10 seconds | `evt:regime:snapshot` |
+
+**Regime classification:**
+
+| Regime | Condition | Strategy action |
+|--------|-----------|-----------------|
+| `DEAD_PINNING` | `|pressure| < 0.04` AND `|slope| < 0.06`, price near POC | **Block all entries** |
+| `SIDEWAY` | Price inside value area, low conviction flow | **Block all entries** |
+| `MIXED` | Ambiguous — flow exists but no clear direction | Allow entries, tighter risk |
+| `ACTION` | `|pressure| ≥ 0.15` or strong CVD slope | Allow entries normally |
+| `HARD_ACTION` | `|pressure| ≥ 0.30` or price broke outside VAH/VAL | Prefer entries, high conviction |
+
+**Volume Profile — futures-native equivalents of options GEX levels:**
+
+| Futures metric | Options GEX equivalent | Interpretation |
+|----------------|------------------------|----------------|
+| POC (Point of Control) | Gamma Flip level | Price gravitates here in low-volatility sessions |
+| VAH (Value Area High) | Call Wall | Upper resistance; sellers defend above value area |
+| VAL (Value Area Low) | Put Wall | Lower support; buyers defend below value area |
+| HVN (High Volume Node) | Gamma wall cluster | Liquidity node that slows price movement |
+| LVN (Low Volume Node) | GEX gap / thin zone | Price moves fast through these levels |
+
+**Dashboard — Market Intelligence panel:**
+
+The new row between the chart and the positions table shows live:
+- Regime badge (color-coded by severity)
+- Regime hint (`EXPANDING_UP` / `EXPANDING_DOWN` / `PINNING` / `FLAT`)
+- Execution pressure (±0.000 scale)
+- CVD (running buy/sell imbalance)
+- VAH / POC / VAL prices
+- Price-vs-value-area indicator (`ABOVE_VAH` / `INSIDE_VA` / `BELOW_VAL`)
+- Session phase (OPEN / MORNING / LUNCH / AFTERNOON / POWER_HOUR / CLOSED)
+
+> See [docs/MARKET-INTELLIGENCE.md](docs/MARKET-INTELLIGENCE.md) for a full technical deep-dive on why indicator-only bots fail and how the regime layer works.
+
 ## Supported Contracts
 
 | Symbol | Description |
@@ -81,6 +126,8 @@ Browse closed trades with entry/exit prices, P&L in points and dollars, and the 
 | Backend | Node.js, Express.js, Bull queue, WebSocket, Bunyan |
 | Database | PostgreSQL (trade history, logs, strategy config) |
 | Cache | Redis + Redlock (market data, account state, locks) |
+| Messaging | Redis pub/sub (inter-agent event bus) |
+| Process management | PM2 (one OS process per agent) |
 | Frontend | React 18, TypeScript, Vite, TailwindCSS, Radix UI |
 | Charts | `lightweight-charts` (TradingView library) |
 | Data fetching | React Query (TanStack Query v5) |
@@ -265,11 +312,23 @@ docker-compose down -v
 
 ```
 tradovate-trading-bot/
+├── agents/                          # PM2 agent processes (v2.0+)
+│   ├── shared/
+│   │   ├── channels.js              # Redis pub/sub channel name constants
+│   │   ├── redis-pubsub.js          # createPublisher / createSubscriber
+│   │   ├── cache.js                 # Redis client wrapper
+│   │   ├── logger.js                # Bunyan structured logger
+│   │   └── error-handler.js         # Process-level uncaught exception handler
+│   ├── config/                      # Hot-reload config from PostgreSQL
+│   ├── market-data/                 # Tradovate WebSocket → Redis (quotes, chart, DOM)
+│   ├── order-flow/                  # CVD + Execution Pressure (5s snapshots)
+│   ├── vol-profile/                 # Volume Profile: POC/VAH/VAL/HVN/LVN (30s snapshots)
+│   ├── regime/                      # Regime classifier: DEAD_PINNING→HARD_ACTION (10s)
+│   ├── strategy/                    # TradingView signals + regime gate → orders
+│   ├── order/                       # Tradovate order state machine
+│   ├── notification/                # Slack + WebSocket notification relay
+│   └── frontend/                    # Express HTTP + WebSocket server
 ├── app/
-│   ├── server.js                    # Main entry point
-│   ├── server-tradovate.js          # WebSocket connection to Tradovate
-│   ├── server-cronjob.js            # Trading job scheduler
-│   ├── server-frontend.js           # Express API + static file server
 │   ├── tradovate/                   # Tradovate REST + WebSocket client
 │   ├── cronjob/
 │   │   ├── trailingTradeHelper/     # Core strategy logic (grid, stop-loss)
@@ -282,8 +341,14 @@ tradovate-trading-bot/
 │   └── src/
 │       ├── pages/                   # Dashboard, TradeHistory, Settings, Logs
 │       ├── components/              # CandlestickChart, PositionsTable, LogsPanel
-│       └── hooks/                   # useChartData, useMarketData, useDashboard
+│       └── hooks/
+│           ├── useMarketData.ts     # Price tick / price update WebSocket hook
+│           ├── useOrderFlow.ts      # CVD / pressure / regime / vol-profile hook
+│           └── useChartData.ts      # OHLCV bars for candlestick chart
+├── docs/
+│   └── MARKET-INTELLIGENCE.md      # Deep-dive: regime-aware trading system
 ├── config/                          # Strategy defaults (default.json)
+├── ecosystem.config.js              # PM2 process definitions
 ├── migrations/                      # PostgreSQL schema migrations
 ├── scripts/
 │   └── seed.js                      # Development seed data
@@ -314,11 +379,18 @@ tradovate-trading-bot/
 - [x] Local tunnel for TradingView webhooks
 - [x] Docker Compose deployment
 
-### v2.0 — Strategy & Reliability
+### v2.0 — Market Intelligence Layer
+- [x] OrderFlowAgent: CVD + Execution Pressure from raw Tradovate tick data
+- [x] VolProfileAgent: real-time POC / VAH / VAL / HVN / LVN per contract
+- [x] RegimeAgent: DEAD_PINNING / SIDEWAY / MIXED / ACTION / HARD_ACTION classification
+- [x] Strategy regime gate: blocks entries in DEAD_PINNING and SIDEWAY regimes
+- [x] Frontend WebSocket bridges for order-flow, vol-profile, regime channels
+- [x] `useOrderFlow` React hook with auto-reconnect
+- [x] Market Intelligence dashboard panel (regime, CVD, pressure, POC/VAH/VAL)
+- [x] PM2 multi-agent process management (ecosystem.config.js)
 - [ ] Contract auto-rotation (ESZ2 → ESH3 on expiry)
 - [ ] Backtesting engine — replay historical candles against current strategy
 - [ ] Paper trading mode — simulate without placing real orders
-- [ ] Additional indicators: MACD, Bollinger Bands, EMA, VWAP
 - [ ] Multi-symbol side-by-side dashboard
 - [ ] Trailing stop as price distance, not fixed percentage
 

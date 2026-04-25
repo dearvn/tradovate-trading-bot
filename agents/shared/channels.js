@@ -47,6 +47,14 @@ const CH = {
   /** 5-second snapshot: { contractId, cvd, pressure, regimeHint, sessionPhase, ts } */
   EVT_ORDER_FLOW_SNAPSHOT: 'evt:order-flow:snapshot',
 
+  // ── Volume Profile (POC / VAH / VAL / HVN / LVN) ─────────────────────────
+  /** 30-second snapshot: { contractId, poc, vah, val, hvn[], lvn[], totalVolume, ts } */
+  EVT_VOL_PROFILE_SNAPSHOT: 'evt:vol-profile:snapshot',
+
+  // ── Regime (combines OrderFlow + VolProfile) ───────────────────────────────
+  /** 10-second snapshot: { contractId, regime, regimeHint, sessionPhase, pressure, slope, cvd, poc, vah, val, ts } */
+  EVT_REGIME_SNAPSHOT: 'evt:regime:snapshot',
+
   // ── Configuration ─────────────────────────────────────────────────────────
   EVT_CONFIG_CHANGED: 'evt:config:changed',
 };

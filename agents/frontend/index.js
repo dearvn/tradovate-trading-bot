@@ -207,6 +207,21 @@ const run = async () => {
     broadcast('bar-update', { result: true, type: 'bar-update', data });
   });
 
+  sub.subscribe(CH.EVT_ORDER_FLOW_SNAPSHOT, (_channel, data) => {
+    if (!data) return;
+    broadcast('order-flow', { result: true, type: 'order-flow', data });
+  });
+
+  sub.subscribe(CH.EVT_VOL_PROFILE_SNAPSHOT, (_channel, data) => {
+    if (!data) return;
+    broadcast('vol-profile', { result: true, type: 'vol-profile', data });
+  });
+
+  sub.subscribe(CH.EVT_REGIME_SNAPSHOT, (_channel, data) => {
+    if (!data) return;
+    broadcast('regime', { result: true, type: 'regime', data });
+  });
+
   logger.info({ port }, 'FrontendAgent ready');
 };
 

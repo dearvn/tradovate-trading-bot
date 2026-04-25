@@ -56,6 +56,7 @@ let rsi_down = false;
 let atr_value = 3.5;
 let macd_bull = false;
 let macd_bear = false;
+let regimeState = null; // latest RegimeAgent snapshot
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -319,6 +320,12 @@ const startTradeLogic = (pub, logger, configuration) => {
     const logic_put = configuration.sell && configuration.sell.gridTrade ? configuration.sell.gridTrade : [];
 
     if (!order.status || order.status !== 'open') {
+      // ── Regime gate: skip entries in dead/sideways markets ────────────────
+      if (regimeState && (regimeState.regime === 'DEAD_PINNING' || regimeState.regime === 'SIDEWAY')) {
+        logger.info({ regime: regimeState.regime }, 'StrategyAgent: entry skipped by regime gate');
+        return;
+      }
+
       // ── Entry logic ───────────────────────────────────────────────────────
       if (logic_call[1] && logic_call[1].enabled === true && rsi_up && up_10m && bottomsupport && close > wma48 && close > wma200) {
         const stoploss = up_10m ? (logic_call[1].stoploss_strong || 5) : (logic_call[1].stoploss || 3.5);
@@ -592,6 +599,13 @@ const run = async () => {
     if (data && data.globalConfiguration) {
       globalConfiguration = data.globalConfiguration;
       logger.info('StrategyAgent: configuration reloaded');
+    }
+  });
+
+  sub.subscribe(CH.EVT_REGIME_SNAPSHOT, (_channel, snap) => {
+    const payload = snap.data || snap;
+    if (payload && payload.regime) {
+      regimeState = payload;
     }
   });
 

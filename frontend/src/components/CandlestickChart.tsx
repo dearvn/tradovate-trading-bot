@@ -5,10 +5,13 @@ import {
   CrosshairMode,
   CandlestickSeries,
   HistogramSeries,
+  LineSeries,
+  LineStyle,
   type IChartApi,
   type ISeriesApi,
   type CandlestickData,
   type HistogramData,
+  type LineData,
   type Time,
 } from 'lightweight-charts';
 import type { CandleBar } from '@/hooks/useChartData';
@@ -26,15 +29,44 @@ const CHART_THEME = {
   border: 'rgba(255,255,255,0.08)',
   upColor: '#22c55e',
   downColor: '#ef4444',
-  upVolume: 'rgba(34,197,94,0.4)',
-  downVolume: 'rgba(239,68,68,0.4)',
+  upVolume: 'rgba(34,197,94,0.35)',
+  downVolume: 'rgba(239,68,68,0.35)',
+  wma11: '#f59e0b',   // amber — fast
+  wma48: '#60a5fa',   // blue — medium
+  wma200: '#f43f5e',  // rose — slow trend
 };
+
+function calcWMA(closes: number[], period: number): (number | null)[] {
+  const result: (number | null)[] = [];
+  const weightSum = (period * (period + 1)) / 2;
+  for (let i = 0; i < closes.length; i++) {
+    if (i < period - 1) { result.push(null); continue; }
+    let wma = 0;
+    for (let j = 0; j < period; j++) wma += closes[i - period + 1 + j] * (j + 1);
+    result.push(wma / weightSum);
+  }
+  return result;
+}
+
+function toLineData(values: (number | null)[], times: Time[]): LineData<Time>[] {
+  const out: LineData<Time>[] = [];
+  for (let i = 0; i < values.length; i++) {
+    if (values[i] !== null) out.push({ time: times[i], value: values[i] as number });
+  }
+  return out;
+}
 
 export function CandlestickChart({ bars, currentPrice, className }: CandlestickChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
+  const wma11Ref = useRef<ISeriesApi<'Line'> | null>(null);
+  const wma48Ref = useRef<ISeriesApi<'Line'> | null>(null);
+  const wma200Ref = useRef<ISeriesApi<'Line'> | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const priceLineRef = useRef<any>(null);
+  const initialFitDone = useRef(false);
 
   const initChart = useCallback(() => {
     if (!containerRef.current) return;
@@ -76,9 +108,32 @@ export function CandlestickChart({ bars, currentPrice, className }: CandlestickC
       priceFormat: { type: 'volume' },
       priceScaleId: 'volume',
     });
-
     chartRef.current.priceScale('volume').applyOptions({
       scaleMargins: { top: 0.82, bottom: 0 },
+    });
+
+    const lineOpts = {
+      priceLineVisible: false,
+      lastValueVisible: true,
+      crosshairMarkerVisible: false,
+      lineWidth: 1 as const,
+    };
+
+    wma11Ref.current = chartRef.current.addSeries(LineSeries, {
+      ...lineOpts,
+      color: CHART_THEME.wma11,
+      title: 'W11',
+    });
+    wma48Ref.current = chartRef.current.addSeries(LineSeries, {
+      ...lineOpts,
+      color: CHART_THEME.wma48,
+      title: 'W48',
+    });
+    wma200Ref.current = chartRef.current.addSeries(LineSeries, {
+      ...lineOpts,
+      lineWidth: 2,
+      color: CHART_THEME.wma200,
+      title: 'W200',
     });
 
     const ro = new ResizeObserver(entries => {
@@ -91,6 +146,7 @@ export function CandlestickChart({ bars, currentPrice, className }: CandlestickC
       ro.disconnect();
       chartRef.current?.remove();
       chartRef.current = null;
+      initialFitDone.current = false;
     };
   }, []);
 
@@ -99,8 +155,12 @@ export function CandlestickChart({ bars, currentPrice, className }: CandlestickC
     return cleanup;
   }, [initChart]);
 
+  // Load / update bars + WMA overlay
   useEffect(() => {
     if (!candleSeriesRef.current || !volumeSeriesRef.current || bars.length === 0) return;
+
+    const times = bars.map(b => b.time as Time);
+    const closes = bars.map(b => b.close);
 
     const candleData: CandlestickData<Time>[] = bars.map(b => ({
       time: b.time as Time,
@@ -118,11 +178,23 @@ export function CandlestickChart({ bars, currentPrice, className }: CandlestickC
 
     candleSeriesRef.current.setData(candleData);
     volumeSeriesRef.current.setData(volumeData);
-    chartRef.current?.timeScale().fitContent();
+
+    wma11Ref.current?.setData(toLineData(calcWMA(closes, 11), times));
+    wma48Ref.current?.setData(toLineData(calcWMA(closes, 48), times));
+    wma200Ref.current?.setData(toLineData(calcWMA(closes, 200), times));
+
+    if (!initialFitDone.current) {
+      chartRef.current?.timeScale().fitContent();
+      initialFitDone.current = true;
+    } else {
+      chartRef.current?.timeScale().scrollToRealTime();
+    }
   }, [bars]);
 
+  // Live price tick — update last candle + price line
   useEffect(() => {
     if (!candleSeriesRef.current || !currentPrice || bars.length === 0) return;
+
     const last = bars[bars.length - 1];
     candleSeriesRef.current.update({
       time: last.time as Time,
@@ -131,6 +203,19 @@ export function CandlestickChart({ bars, currentPrice, className }: CandlestickC
       low: Math.min(last.low, currentPrice),
       close: currentPrice,
     });
+
+    if (!priceLineRef.current) {
+      priceLineRef.current = candleSeriesRef.current.createPriceLine({
+        price: currentPrice,
+        color: 'rgba(148,163,184,0.6)',
+        lineWidth: 1,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: '',
+      });
+    } else {
+      priceLineRef.current.applyOptions({ price: currentPrice });
+    }
   }, [currentPrice, bars]);
 
   const isEmpty = bars.length === 0;

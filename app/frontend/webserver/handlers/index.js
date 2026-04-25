@@ -18,6 +18,7 @@ const { handlePositions } = require('./api/positions');
 const { handleStrategy } = require('./api/strategy');
 const { handleTrades } = require('./api/trades');
 const { handleLogs } = require('./api/logs');
+const { handleBars } = require('./api/bars');
 
 const setHandlers = async (logger, app, { loginLimiter }) => {
   await handleAuth(logger, app, { loginLimiter });
@@ -39,6 +40,7 @@ const setHandlers = async (logger, app, { loginLimiter }) => {
   await handleStrategy(logger, app);
   await handleTrades(logger, app);
   await handleLogs(logger, app);
+  await handleBars(logger, app);
 
   await handle404(logger, app);
 };

@@ -151,3 +151,17 @@ export const ListLogsSeverity = {
   warning: "warning",
   error: "error",
 } as const;
+
+export interface OhlcBar {
+  timestamp: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  upVolume: number;
+  downVolume: number;
+}
+
+export type GetBarsParams = {
+  symbol?: string;
+};

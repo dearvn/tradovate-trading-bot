@@ -102,29 +102,51 @@ const handleStrategy = async (funcLogger, app) => {
   // GET /api/strategy/performance
   app.get('/api/strategy/performance', async (_req, res) => {
     try {
-      // Daily aggregated P&L for the last 7 days
       const rows = await postgres.query(
         logger,
         `SELECT
-           DATE(entry_time) AS day,
-           COALESCE(SUM((data->>'pnl')::NUMERIC), 0) AS pnl,
-           COUNT(*)::INTEGER AS trades,
-           COALESCE(SUM(CASE WHEN (data->>'pnl')::NUMERIC > 0 THEN 1 ELSE 0 END), 0)::INTEGER AS wins
+           COUNT(*)::INTEGER AS total_trades,
+           COALESCE(SUM(CASE WHEN (data->>'pnl')::NUMERIC > 0 THEN 1 ELSE 0 END), 0)::INTEGER AS winning_trades,
+           COALESCE(SUM(CASE WHEN (data->>'pnl')::NUMERIC <= 0 THEN 1 ELSE 0 END), 0)::INTEGER AS losing_trades,
+           COALESCE(AVG(CASE WHEN (data->>'pnl')::NUMERIC > 0 THEN (data->>'pnl')::NUMERIC END), 0) AS avg_win,
+           COALESCE(ABS(AVG(CASE WHEN (data->>'pnl')::NUMERIC <= 0 THEN (data->>'pnl')::NUMERIC END)), 0) AS avg_loss,
+           COALESCE(MAX((data->>'pnl')::NUMERIC), 0) AS max_win,
+           COALESCE(MIN((data->>'pnl')::NUMERIC), 0) AS max_loss,
+           COALESCE(SUM(CASE WHEN (data->>'pnl')::NUMERIC > 0 THEN (data->>'pnl')::NUMERIC ELSE 0 END), 0) AS gross_profit,
+           COALESCE(ABS(SUM(CASE WHEN (data->>'pnl')::NUMERIC <= 0 THEN (data->>'pnl')::NUMERIC ELSE 0 END)), 0) AS gross_loss
          FROM orders
-         WHERE status = 'closed'
-           AND entry_time >= NOW() - INTERVAL '7 days'
-         GROUP BY DATE(entry_time)
-         ORDER BY day ASC`
+         WHERE status = 'closed'`
       );
 
-      const performance = rows.map(r => ({
-        date: r.day,
-        pnl: parseFloat(r.pnl) || 0,
-        trades: r.trades || 0,
-        winRate: r.trades > 0 ? Math.round((r.wins / r.trades) * 100) : 0
-      }));
+      const r = rows[0] || {};
+      const totalTrades = r.total_trades || 0;
+      const winningTrades = r.winning_trades || 0;
+      const losingTrades = r.losing_trades || 0;
+      const avgWin = parseFloat(r.avg_win) || 0;
+      const avgLoss = parseFloat(r.avg_loss) || 0;
+      const grossProfit = parseFloat(r.gross_profit) || 0;
+      const grossLoss = parseFloat(r.gross_loss) || 0;
 
-      res.json({ performance });
+      const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
+      const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? 999 : 0;
+      const riskRewardRatio = avgLoss > 0 ? avgWin / avgLoss : avgWin > 0 ? 999 : 0;
+      // Simplified Sharpe: (winRate/100 * avgWin - (1-winRate/100) * avgLoss) / (avgLoss || 1)
+      const expectancy = (winRate / 100) * avgWin - (1 - winRate / 100) * avgLoss;
+      const sharpeRatio = avgLoss > 0 ? expectancy / avgLoss : 0;
+
+      res.json({
+        winRate,
+        currentDrawdown: 0,
+        maxDrawdown: 0,
+        totalTrades,
+        winningTrades,
+        losingTrades,
+        riskRewardRatio,
+        avgWin,
+        avgLoss,
+        profitFactor,
+        sharpeRatio
+      });
     } catch (err) {
       logger.error({ err }, 'Failed to get strategy performance');
       res.status(500).json({ error: 'Internal server error' });

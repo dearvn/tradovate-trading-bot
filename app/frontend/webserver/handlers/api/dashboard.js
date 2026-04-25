@@ -57,10 +57,35 @@ const handleDashboard = async (funcLogger, app) => {
         // ignore db errors
       }
 
+      // Weekly P&L
+      let weeklyPnl = 0;
+      try {
+        const weekStart = new Date();
+        weekStart.setDate(weekStart.getDate() - 7);
+        weekStart.setHours(0, 0, 0, 0);
+        const weekRows = await postgres.query(
+          logger,
+          `SELECT COALESCE(SUM((data->>'pnl')::NUMERIC), 0) AS weekly_pnl
+           FROM orders WHERE status = 'closed' AND entry_time >= $1`,
+          [weekStart]
+        );
+        weeklyPnl = weekRows.length > 0 ? parseFloat(weekRows[0].weekly_pnl) || 0 : 0;
+      } catch (_e) {
+        // ignore
+      }
+
+      const dailyPnlPercent = balance > 0 ? (dailyPnl / balance) * 100 : 0;
+
+      // Bot status: 'live' if there are open positions, else 'simulated'
+      const botStatus = openCount > 0 ? 'live' : 'simulated';
+
       res.json({
-        balance,
+        totalBalance: balance,
         dailyPnl,
+        dailyPnlPercent,
+        weeklyPnl,
         openPositions: openCount,
+        botStatus,
         totalTrades,
         winRate
       });

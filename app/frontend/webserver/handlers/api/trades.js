@@ -30,23 +30,29 @@ const handleTrades = async (funcLogger, app) => {
 
       const trades = rows.map(row => {
         const data = row.data || {};
+        const entryPrice = row.entryPrice || data.entryPrice || 0;
+        const size = row.quantity || data.quantity || 1;
+        const realizedPnl = row.pnl || data.pnl || 0;
+        const realizedPnlPercent = entryPrice > 0
+          ? (realizedPnl / (entryPrice * size)) * 100
+          : 0;
+        const openedAt = row.entryTime || row.entry_time || new Date();
+        const closedAt = row.exitTime || row.exit_time || data.exitTime || new Date();
         return {
           id: String(row.id),
           symbol: row.symbol,
           side: row.side || data.side || 'long',
-          quantity: row.quantity || data.quantity || 1,
-          entryPrice: row.entryPrice || data.entryPrice || 0,
+          size,
+          entryPrice,
           exitPrice: row.exitPrice || data.exitPrice || 0,
-          pnl: row.pnl || data.pnl || 0,
-          entryTime: row.entryTime || row.entry_time,
-          exitTime: row.exitTime || row.exit_time || data.exitTime || null,
-          status: row.status
+          realizedPnl,
+          realizedPnlPercent,
+          openedAt: openedAt.toISOString ? openedAt.toISOString() : String(openedAt),
+          closedAt: closedAt.toISOString ? closedAt.toISOString() : String(closedAt)
         };
       });
 
-      const total = (totalRows[0] || {}).cnt || 0;
-
-      res.json({ trades, total, limit, offset });
+      res.json(trades);
     } catch (err) {
       logger.error({ err }, 'Failed to list trades');
       res.status(500).json({ error: 'Internal server error' });

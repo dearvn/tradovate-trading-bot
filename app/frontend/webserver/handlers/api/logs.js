@@ -18,17 +18,22 @@ const handleLogs = async (funcLogger, app) => {
 
       const logs = rows.map(row => {
         const data = row.data || {};
+        const rawLevel = data.level || row.level || 'info';
+        // Normalize level to severity enum: info | warning | error
+        const severity = rawLevel === 'warn' || rawLevel === 'warning' ? 'warning'
+          : rawLevel === 'error' || rawLevel === 'fatal' ? 'error'
+          : 'info';
+        const ts = row.loggedAt || row.logged_at || new Date();
         return {
           id: String(row.id),
-          symbol: row.symbol,
-          msg: row.msg,
-          level: data.level || 'info',
-          loggedAt: row.loggedAt || row.logged_at,
+          timestamp: ts.toISOString ? ts.toISOString() : String(ts),
+          severity,
+          message: row.msg || data.msg || '',
           context: data.context || null
         };
       });
 
-      res.json({ logs });
+      res.json(logs);
     } catch (err) {
       logger.error({ err }, 'Failed to list logs');
       res.status(500).json({ error: 'Internal server error' });

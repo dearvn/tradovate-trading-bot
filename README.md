@@ -1,17 +1,68 @@
 # Tradovate Trading Bot
 
-An automated futures trading bot that connects to [Tradovate](https://tradovate.com) via API/WebSocket, receives signals from TradingView, and executes trades using a trailing buy/sell grid strategy — with a real-time React dashboard for monitoring and configuration.
+An automated futures trading bot that connects to [Tradovate](https://tradovate.com) via API and WebSocket, receives signals from TradingView, and executes trades using a grid strategy — with a real-time React dashboard for monitoring and configuration.
+
+---
+
+## Dashboard
+
+![Dashboard](screenshot.png)
+
+The dashboard provides a live view of your account: candlestick chart, strategy performance metrics, open positions, and execution logs — all updating in real time.
+
+**Strategy Performance metrics:**
+- Win Rate, Max Drawdown, Risk/Reward, Profit Factor
+- Sharpe Ratio, Average Win, Average Loss, Expectancy
+
+**Active Positions table:**
+- Symbol, direction (LONG/SHORT), contracts, entry price, current price, unrealized P&L
+
+**Execution Logs panel:**
+- Timestamped INFO / WARN / ERROR entries from every strategy step
+
+---
+
+## Login
+
+![Login](login.png)
+
+Secure password-protected access. Enable or disable authentication via the `TRADOVATE_AUTHENTICATION_ENABLED` environment variable.
+
+---
+
+## Settings
+
+![Settings](setting.png)
+
+Adjust all strategy parameters from the UI without restarting the bot:
+
+| Section | Options |
+|---------|---------|
+| Bot Setting | Enable/disable auto-trading, select active symbol |
+| Authentication | Tradovate demo/live credentials |
+| Symbol Setting | Timeframe, contract (e.g. ESZ2 / 1m) |
+| Call Configurations | Logic #1/#2, Stop Loss, Stop Loss Strong, Point In |
+
+---
+
+## Trade History
+
+![Orders](orders.png)
+
+Browse closed trades with entry/exit prices, P&L in points and dollars, and the logic gate that triggered the trade (Logic #1, #2, #4).
+
+---
 
 ## Features
 
-- **Automated trading** — Executes buy/sell orders based on TradingView signals (BUY, SELL, STRONG_BUY, STRONG_SELL)
-- **Grid trading strategy** — Multiple entry/exit levels with configurable stoploss percentages
+- **Automated trading** — Executes buy/sell orders based on TradingView signals (`BUY`, `SELL`, `STRONG_BUY`, `STRONG_SELL`)
+- **Grid trading strategy** — Multiple entry/exit levels with configurable stop-loss percentages
 - **Technical indicators** — WMA, RSI, CrossUp, CrossDown signal confirmation
 - **Trailing stop-loss** — Configurable max loss protection per trade
-- **Real-time dashboard** — Monitor balance, open positions, P&L, win rate, and trade history
-- **Strategy configuration** — Adjust all parameters from the UI without restarting
+- **Real-time candlestick chart** — Live OHLCV bars via WebSocket, powered by `lightweight-charts`
+- **Strategy configuration** — Change all parameters from the UI without restarting
 - **Slack notifications** — Alerts for order confirmations and executions
-- **Job monitoring** — Built-in Bull board for queue inspection
+- **Job monitoring** — Built-in Bull Board for queue inspection at `/bull-board`
 - **Local tunnel support** — Expose bot publicly to receive TradingView webhook alerts
 
 ## Supported Contracts
@@ -25,17 +76,27 @@ An automated futures trading bot that connects to [Tradovate](https://tradovate.
 
 ## Tech Stack
 
-**Backend:** Node.js, Express.js, PostgreSQL, Redis, Bull queue, WebSocket, Bunyan logging
+| Layer | Technology |
+|-------|-----------|
+| Backend | Node.js, Express.js, Bull queue, WebSocket, Bunyan |
+| Database | PostgreSQL (trade history, logs, strategy config) |
+| Cache | Redis + Redlock (market data, account state, locks) |
+| Frontend | React 18, TypeScript, Vite, TailwindCSS, Radix UI |
+| Charts | `lightweight-charts` (TradingView library) |
+| Data fetching | React Query (TanStack Query v5) |
 
-**Frontend:** React 18, TypeScript, Vite, TailwindCSS, Radix UI, React Query, Recharts, Wouter
+---
 
 ## Requirements
 
-- Docker & Docker Compose
+- Node.js 18+ and npm 9+ (for local dev)
+- PostgreSQL 14+ and Redis 6+ (or Docker)
 - A [Tradovate](https://tradovate.com) account (demo or live)
 - A [TradingView](https://tradingview.com) account for signal alerts (optional)
 
-## Quick Start
+---
+
+## Quick Start (Local)
 
 ### 1. Clone and configure
 
@@ -47,20 +108,44 @@ cp .env.example .env
 
 Edit `.env` with your credentials:
 
-```bash
+```env
 # Tradovate mode: "local" (demo) or "production" (live)
 TRADOVATE_MODE=local
 
-# Demo credentials
-TRADOVATE_TEST_API_KEY=your_api_key
-TRADOVATE_TEST_SECRET_KEY=your_secret_key
+# Demo app credentials (from Tradovate API Management)
+TRADOVATE_DEMO_APP_ID=your_app_id
+TRADOVATE_DEMO_APP_VERSION=1.0
+TRADOVATE_DEMO_CID=your_cid
+TRADOVATE_DEMO_SECRET=your_secret
 
-# UI login password
+# Demo account credentials
+TRADOVATE_DEMO_USERNAME=your_username
+TRADOVATE_DEMO_PASSWORD=your_password
+
+# UI login
 TRADOVATE_AUTHENTICATION_ENABLED=true
-TRADOVATE_AUTHENTICATION_PASSWORD=your_password
+TRADOVATE_AUTHENTICATION_PASSWORD=admin123
 ```
 
-### 2. Build and run
+### 2. Run locally
+
+```bash
+bash run_local.sh
+```
+
+This script will:
+1. Check for Node.js, PostgreSQL, and Redis
+2. Install all npm dependencies
+3. Create the PostgreSQL role and database if missing
+4. Run database migrations
+5. Seed initial data
+6. Start the backend and frontend dev servers
+
+Access the dashboard at **http://localhost:3000** (default password: `admin123`)
+
+---
+
+## Quick Start (Docker)
 
 ```bash
 docker-compose build
@@ -69,15 +154,23 @@ docker-compose up -d
 
 Access the dashboard at **http://localhost:8086**
 
+---
+
 ## Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `TRADOVATE_MODE` | `local` (demo) or `production` (live) | `local` |
-| `TRADOVATE_TEST_API_KEY` | Demo API key | — |
-| `TRADOVATE_TEST_SECRET_KEY` | Demo secret key | — |
-| `TRADOVATE_LIVE_API_KEY` | Live API key | — |
-| `TRADOVATE_LIVE_SECRET_KEY` | Live secret key | — |
+| `TRADOVATE_DEMO_APP_ID` | Demo app ID from Tradovate | — |
+| `TRADOVATE_DEMO_CID` | Demo client ID | — |
+| `TRADOVATE_DEMO_SECRET` | Demo client secret | — |
+| `TRADOVATE_DEMO_USERNAME` | Tradovate account email | — |
+| `TRADOVATE_DEMO_PASSWORD` | Tradovate account password | — |
+| `TRADOVATE_LIVE_APP_ID` | Live app ID | — |
+| `TRADOVATE_LIVE_CID` | Live client ID | — |
+| `TRADOVATE_LIVE_SECRET` | Live client secret | — |
+| `TRADOVATE_LIVE_USERNAME` | Live account email | — |
+| `TRADOVATE_LIVE_PASSWORD` | Live account password | — |
 | `TRADOVATE_AUTHENTICATION_ENABLED` | Enable UI login | `true` |
 | `TRADOVATE_AUTHENTICATION_PASSWORD` | UI login password | — |
 | `TRADOVATE_SLACK_ENABLED` | Enable Slack alerts | `false` |
@@ -87,47 +180,68 @@ Access the dashboard at **http://localhost:8086**
 | `TRADOVATE_POSTGRES_HOST` | PostgreSQL host | `postgres` |
 | `TRADOVATE_POSTGRES_DATABASE` | Database name | `tradovate` |
 
+---
+
 ## TradingView Integration
 
 1. Enable local tunnel in `.env` (`TRADOVATE_LOCAL_TUNNEL_ENABLED=true`) or expose port 8086 publicly
-2. In TradingView, create an alert with a webhook pointing to your bot URL
-3. The bot receives `BUY`, `SELL`, `STRONG_BUY`, or `STRONG_SELL` payloads and acts accordingly
+2. In TradingView, create an alert with webhook URL pointing to your bot
+3. Set the alert message body to one of:
+
+```json
+{ "symbol": "ES", "action": "BUY" }
+{ "symbol": "ES", "action": "SELL" }
+{ "symbol": "NQ", "action": "STRONG_BUY" }
+{ "symbol": "NQ", "action": "STRONG_SELL" }
+```
+
+The bot maps signal strength to grid logic levels: `BUY`/`SELL` → Logic #1, `STRONG_BUY`/`STRONG_SELL` → Logic #2.
+
+---
 
 ## API Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/healthz` | Health check |
-| GET | `/api/dashboard/summary` | Account balance, positions, daily P&L |
-| GET | `/api/positions` | Open positions |
-| DELETE | `/api/positions/:id` | Close a position |
-| GET | `/api/strategy` | Current strategy configuration |
-| PUT | `/api/strategy` | Update strategy settings |
-| GET | `/api/strategy/performance` | Strategy performance metrics |
-| GET | `/api/trades` | Trade history |
-| GET | `/api/logs` | Application logs |
-| POST | `/auth/login` | Authenticate |
+| `GET` | `/api/healthz` | Health check |
+| `GET` | `/api/dashboard/summary` | Account balance, positions, daily P&L |
+| `GET` | `/api/positions` | Open positions |
+| `DELETE` | `/api/positions/:id` | Close a position |
+| `GET` | `/api/strategy` | Current strategy configuration |
+| `PUT` | `/api/strategy` | Update strategy settings |
+| `GET` | `/api/strategy/performance` | Win rate, drawdown, Sharpe, expectancy |
+| `GET` | `/api/trades` | Trade history |
+| `GET` | `/api/logs` | Application logs |
+| `GET` | `/api/bars` | OHLCV bars for chart (Redis cache) |
+| `POST` | `/auth/login` | Authenticate (returns JWT) |
+| `GET` | `/bull-board` | Bull queue monitor |
+
+---
 
 ## Development
 
 ```bash
-# Install dependencies
-npm install
-cd frontend && npm install
+# Install all dependencies
+npm install && cd frontend && npm install && cd ..
 
-# Run backend (with hot reload)
+# Start backend with hot reload
 npm run dev
 
-# Run frontend dev server
+# Start frontend dev server (separate terminal)
 cd frontend && npm run dev
 
-# Run tests
+# Run backend tests
 npm test
 
 # Database migrations
 npm run migrate:up
 npm run migrate:down
+
+# Seed development data
+node scripts/seed.js
 ```
+
+---
 
 ## Docker Commands
 
@@ -141,9 +255,11 @@ docker-compose logs -f
 # Stop all services
 docker-compose down
 
-# Stop and remove volumes
+# Stop and remove all volumes (destructive)
 docker-compose down -v
 ```
+
+---
 
 ## Project Structure
 
@@ -153,80 +269,71 @@ tradovate-trading-bot/
 │   ├── server.js                    # Main entry point
 │   ├── server-tradovate.js          # WebSocket connection to Tradovate
 │   ├── server-cronjob.js            # Trading job scheduler
-│   ├── server-frontend.js           # Express API + UI server
-│   ├── tradovate/                   # Tradovate API client
+│   ├── server-frontend.js           # Express API + static file server
+│   ├── tradovate/                   # Tradovate REST + WebSocket client
 │   ├── cronjob/
-│   │   ├── trailingTradeHelper/     # Core strategy logic
-│   │   └── trailingTradeIndicator/  # Technical indicator calculations
+│   │   ├── trailingTradeHelper/     # Core strategy logic (grid, stop-loss)
+│   │   └── trailingTradeIndicator/  # WMA, RSI, CrossUp, CrossDown, token refresh
 │   ├── frontend/
-│   │   ├── webserver/               # REST API routes
+│   │   ├── webserver/               # REST API route handlers
 │   │   └── bull-board/              # Job queue monitor UI
-│   └── helpers/                     # Postgres, Redis, logger, Slack
+│   └── helpers/                     # cache.js, postgres.js, logger.js, slack.js
 ├── frontend/                        # React dashboard (Vite + TypeScript)
 │   └── src/
 │       ├── pages/                   # Dashboard, TradeHistory, Settings, Logs
-│       ├── components/              # UI components
-│       └── hooks/                   # Data fetching hooks
-├── config/                          # Strategy defaults
-├── migrations/                      # PostgreSQL migrations
+│       ├── components/              # CandlestickChart, PositionsTable, LogsPanel
+│       └── hooks/                   # useChartData, useMarketData, useDashboard
+├── config/                          # Strategy defaults (default.json)
+├── migrations/                      # PostgreSQL schema migrations
+├── scripts/
+│   └── seed.js                      # Development seed data
+├── run_local.sh                     # Local dev startup script
 ├── docker-compose.yml
 └── .env.example
 ```
 
+---
+
 ## Roadmap
 
-### v1.x — Current (Core Bot)
-- [x] Tradovate OAuth + direct auth connection
-- [x] WebSocket real-time market data feed
-- [x] Trailing buy/sell grid strategy
-- [x] TradingView signal integration (BUY, SELL, STRONG_BUY, STRONG_SELL)
+### v1.x — Current
+- [x] Tradovate OAuth + direct auth
+- [x] WebSocket real-time market data
+- [x] Grid trading strategy with configurable stop-loss
+- [x] TradingView signal integration
 - [x] WMA, RSI, CrossUp, CrossDown indicators
 - [x] PostgreSQL trade/order persistence
-- [x] Redis caching layer
+- [x] Redis caching + Redlock distributed locks
 - [x] Bull job queue with monitoring UI
-- [x] React dashboard — balance, positions, P&L, win rate
-- [x] Trade history & application logs pages
+- [x] Live candlestick chart (lightweight-charts)
+- [x] Strategy performance metrics (Sharpe, drawdown, expectancy)
+- [x] Trade history and execution logs
 - [x] Strategy settings UI (live config without restart)
-- [x] Slack notifications for order events
+- [x] Slack notifications
 - [x] JWT authentication with rate limiting
-- [x] Local tunnel support for TradingView webhooks
+- [x] Local tunnel for TradingView webhooks
 - [x] Docker Compose deployment
 
----
-
 ### v2.0 — Strategy & Reliability
-- [ ] **Contract auto-rotation** — Automatically roll over quarterly contracts (ESZ2 → ESH3 → etc.) on expiry
-- [ ] **Backtesting engine** — Replay historical candles against the current strategy before going live
-- [ ] **Paper trading mode** — Simulate trades with live market data without placing real orders
-- [ ] **Additional indicators** — MACD, Bollinger Bands, EMA, VWAP
-- [ ] **Multi-symbol dashboard** — View all active contracts side-by-side on one screen
-- [ ] **Stop-loss improvements** — Trailing stop as a price distance, not just a fixed percentage
-
----
+- [ ] Contract auto-rotation (ESZ2 → ESH3 on expiry)
+- [ ] Backtesting engine — replay historical candles against current strategy
+- [ ] Paper trading mode — simulate without placing real orders
+- [ ] Additional indicators: MACD, Bollinger Bands, EMA, VWAP
+- [ ] Multi-symbol side-by-side dashboard
+- [ ] Trailing stop as price distance, not fixed percentage
 
 ### v2.1 — Notifications & Observability
-- [ ] **Telegram / Discord alerts** — Alternative to Slack for order and error notifications
-- [ ] **Email notifications** — Daily P&L summary and trade alerts via email
-- [ ] **Performance analytics** — Sharpe ratio, max drawdown chart, equity curve graph
-- [ ] **Trade journaling** — Add notes to individual trades; export to CSV/Excel
-- [ ] **Alert on connection loss** — Notify immediately if Tradovate WebSocket drops
-
----
+- [ ] Telegram / Discord alerts
+- [ ] Daily P&L email summary
+- [ ] Equity curve chart
+- [ ] Trade journaling with CSV export
+- [ ] Alert on WebSocket connection loss
 
 ### v2.2 — Multi-Account & Security
-- [ ] **Multi-account support** — Manage multiple Tradovate accounts from one dashboard
-- [ ] **Role-based access** — Read-only viewer vs. full admin UI access
-- [ ] **Audit log** — Track every manual config change and who made it
-- [ ] **2FA for UI login** — TOTP-based two-factor authentication
-
----
-
-### v3.0 — Platform Expansion
-- [ ] **Interactive Brokers integration** — Trade equities and options in addition to futures
-- [ ] **TD Ameritrade / Schwab API** — Alternate broker support
-- [ ] **Crypto futures** — Binance or Bybit perpetual contracts
-- [ ] **Options trading** — Basic call/put order support on supported brokers
-- [ ] **Strategy marketplace** — Import/export named strategy presets as JSON
+- [ ] Multi-account management
+- [ ] Role-based access (read-only viewer vs. admin)
+- [ ] Audit log for config changes
+- [ ] TOTP two-factor authentication
 
 ---
 

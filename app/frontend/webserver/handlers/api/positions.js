@@ -13,18 +13,31 @@ const handlePositions = async (funcLogger, app) => {
         { sort: { entryTime: -1 } }
       );
 
-      const positions = rows.map(row => ({
-        id: String(row.id),
-        symbol: row.symbol,
-        side: row.side || (row.data && row.data.side) || 'long',
-        quantity: row.quantity || (row.data && row.data.quantity) || 1,
-        entryPrice: row.entryPrice || (row.data && row.data.entryPrice) || 0,
-        currentPrice: row.currentPrice || (row.data && row.data.currentPrice) || 0,
-        pnl: row.pnl || (row.data && row.data.pnl) || 0,
-        entryTime: row.entryTime || row.entry_time
-      }));
+      const positions = rows.map(row => {
+        const data = row.data || {};
+        const entryPrice = row.entryPrice || data.entryPrice || 0;
+        const currentPrice = row.currentPrice || data.currentPrice || 0;
+        const size = row.quantity || data.quantity || 1;
+        const unrealizedPnl = row.pnl || data.pnl || 0;
+        const unrealizedPnlPercent = entryPrice > 0
+          ? (unrealizedPnl / (entryPrice * size)) * 100
+          : 0;
+        return {
+          id: String(row.id),
+          symbol: row.symbol,
+          side: row.side || data.side || 'long',
+          size,
+          entryPrice,
+          currentPrice,
+          unrealizedPnl,
+          unrealizedPnlPercent,
+          openedAt: (row.entryTime || row.entry_time || new Date()).toISOString
+            ? (row.entryTime || row.entry_time || new Date()).toISOString()
+            : String(row.entryTime || row.entry_time || new Date())
+        };
+      });
 
-      res.json({ positions });
+      res.json(positions);
     } catch (err) {
       logger.error({ err }, 'Failed to list positions');
       res.status(500).json({ error: 'Internal server error' });

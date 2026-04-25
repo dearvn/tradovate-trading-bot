@@ -7,14 +7,17 @@ services:
       context: ./
       target: dev-stage
       # target: production-stage
+    command: npx pm2-runtime ecosystem.config.js
     networks:
       - internal
     volumes:
       - ./config:/srv/config
       - ./app:/srv/app
+      - ./agents:/srv/agents
       - ./public:/srv/public
       - ./migrations:/srv/migrations
       - ./scripts:/srv/scripts
+      - ./ecosystem.config.js:/srv/ecosystem.config.js
     env_file:
       - .env
     restart: unless-stopped

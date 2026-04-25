@@ -11,11 +11,13 @@ import type {
 
 import type {
   DashboardSummary,
+  GetBarsParams,
   HealthStatus,
   KillSwitchResult,
   ListLogsParams,
   ListTradesParams,
   LogEntry,
+  OhlcBar,
   Position,
   Strategy,
   StrategyPerformance,
@@ -173,5 +175,25 @@ export function useListLogs<TData = Awaited<ReturnType<typeof listLogs>>, TError
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryKey = options?.query?.queryKey ?? getListLogsQueryKey(params);
   const query = useQuery({ queryKey, queryFn: ({ signal }) => listLogs(params, { signal }), refetchInterval: 5000, ...options?.query }) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return { ...query, queryKey };
+}
+
+// Bars (OHLCV)
+export const getGetBarsQueryKey = (params?: GetBarsParams) =>
+  [`/api/bars`, ...(params ? [params] : [])] as const;
+
+export const getBars = async (params?: GetBarsParams, options?: RequestInit): Promise<OhlcBar[]> => {
+  const query = new URLSearchParams();
+  if (params?.symbol) query.append('symbol', params.symbol);
+  const qs = query.toString();
+  return customFetch<OhlcBar[]>(qs ? `/api/bars?${qs}` : `/api/bars`, { ...options, method: "GET" });
+};
+
+export function useGetBars<TData = Awaited<ReturnType<typeof getBars>>, TError = ErrorType<unknown>>(
+  params?: GetBarsParams,
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getBars>>, TError, TData> },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryKey = options?.query?.queryKey ?? getGetBarsQueryKey(params);
+  const query = useQuery({ queryKey, queryFn: ({ signal }) => getBars(params, { signal }), ...options?.query }) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
   return { ...query, queryKey };
 }

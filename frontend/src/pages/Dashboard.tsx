@@ -11,6 +11,8 @@ import { X, TrendingUp, RefreshCw, Target, Activity, Trash2, ToggleRight, Dollar
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useMarketData } from "@/hooks/useMarketData";
+import { useChartData } from "@/hooks/useChartData";
+import { CandlestickChart } from "@/components/CandlestickChart";
 import { AreaChart, Area, ResponsiveContainer, YAxis } from "recharts";
 
 const MOCK_EQUITY_DATA = [
@@ -27,6 +29,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const marketData = useMarketData();
+  const { bars } = useChartData(marketData.symbol);
 
   const [logFilter, setLogFilter] = useState<"All" | "Orders" | "Risk" | "System">("All");
   const [autoScroll, setAutoScroll] = useState(true);
@@ -98,16 +101,11 @@ export default function Dashboard() {
                 {marketData.direction === 'up' ? '▲' : marketData.direction === 'down' ? '▼' : '▬'} {marketData.change > 0 ? '+' : ''}{marketData.change.toFixed(2)} ({marketData.changePercent > 0 ? '+' : ''}{marketData.changePercent.toFixed(2)}%)
               </span>
             </div>
-            <div className="text-xs text-slate-400 font-mono">VOL: {(marketData.volume / 1000).toFixed(1)}K</div>
+            <div className="text-xs text-slate-400 font-mono">VOL: {bars.length > 0 ? ((bars[bars.length - 1].volume) / 1000).toFixed(1) : '0.0'}K</div>
           </div>
         </CardHeader>
         <CardContent className="p-0 flex-1 relative bg-[#070c14] overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(59,130,246,0.05)_0%,_transparent_60%)] pointer-events-none" />
-          <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
-            <div className="w-12 h-12 border-2 border-primary/20 border-t-primary rounded-full animate-spin mx-auto mb-4" />
-            <div className="text-primary font-mono text-xs tracking-widest font-bold opacity-70">INITIALIZING TRADINGVIEW ENGINE...</div>
-          </div>
+          <CandlestickChart bars={bars} currentPrice={marketData.price > 0 ? marketData.price : undefined} className="absolute inset-0" />
         </CardContent>
       </Card>
 
